@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+
+    <script type="text/javascript">
+
+    google.load('visualization', '1', { packages: ['table']});
+
+    var visualization;
+
+    google.setOnLoadCallback(drawQuadro);
+
+    // -------------------------
+    function drawQuadro()
+    {
+
+      var aEntidade = getPlanilha( "calendario" ) ;
+      var stringquery='SELECT E,G,L,J,K WHERE E<>"" AND G > 0 ORDER BY E';
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+      query.setQuery(stringquery);
+      query.send(handleQueryResponse);
+
+    }
+
+    function handleQueryResponse(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+      var otherData = response.getDataTable();
+
+      var dataTable = new google.visualization.DataTable();
+
+      var dataInicio = new Date("2018,01,01");
+
+      var dataFim  = new Date("12/31/2018");
+
+      var data = dataInicio;
+
+      dataTable.addColumn( 'string', 'Name' );
+
+      var nDias = 0 ;
+
+      var aNomesColunas = ['Name'];
+      var aHorasUteisMeses = ['meses'];
+
+      // apura a menor data e a maior data que possuam alocação de horas
+      for ( var i = 0 ; i < otherData.getNumberOfRows() ; i++ )
+      {
+        if( otherData.getValue( i , 4) > dataFim )
+        {
+          dataFim = new Date( otherData.getValue( i , 4) );
+        }
+
+      }
+
+      var nDiasTabela = diasCorridos( dataInicio , dataFim ) + 2 ;
+
+      var nLinhasAdicionadas = 0;
+
+      var nCorCelula;
+
+      var cMesAno;
+      var primeiroDia ;
+      var ultimoDia ;
+
+      // percorre o período compreendido entre a menor e maior data, e adiciona ao datatable uma coluna para cada mês.
+      for( var i = 0 ; i < nDiasTabela ; i++)
+      {
+        if((mesLiteral(data.getMonth()+1)).substring(0,3) + "/" + data.getFullYear()  != cMesAno )
+        {
+          cMesAno = (mesLiteral(data.getMonth()+1)).substring(0,3) + "/" + data.getFullYear() ;
+          dataTable.addColumn('string', cMesAno);
+          aNomesColunas.push( cMesAno );
+
+          primeiroDia = new Date(data.getFullYear(), data.getMonth(), 1);
+          ultimoDia = new Date(data.getFullYear(), data.getMonth() + 1, 0);
+
+          aHorasUteisMeses.push( diasUteis( primeiroDia , ultimoDia ) )
+        }
+
+        data.setDate( data.getDate() + 1 );
+
+        nDias++;
+      }
+
+      dataTable.addColumn('string', 'recurso') ;
+
+      //alert( dataTable.getNumberOfColumns() ) ;
+
+      var cRecurso = "" ;
+      var aLinhas = [] ;
+      var aLinha = [] ;
+      var dataInicio = new Date("2018,01,01");
+
+      for ( var i = 0 ; i < otherData.getNumberOfRows() ; i++ )
+      {
+        if ( otherData.getValue(i,0) != cRecurso )
+        {
+          aLinha = [ '<a href="alocacao_recurso.html?id_recurso=' + otherData.getValue(i, 0)+'&cMes=geral">' + otherData.getValue(i, 0) + '</a>' ];
+
+          for( var k = 0 ; k < dataTable.getNumberOfColumns()-2 ; k++ )
+          {
+            //aLinha.push( 0 );
+            aLinha.push( '0' );
+
+          }
+
+          aLinha.push( otherData.getValue(i,0) ) ;
+
+          //alert( aLinha.length );
+
+          aLinhas.push( aLinha ) ;
+
+          aLinha = [] ;
+
+          cRecurso = otherData.getValue(i,0) ;
+
+          var nPosicao = aLinhas.length-1;
+        }
+
+        var nHorasEstimadas = otherData.getValue(i,1) ;
+        var nHorasDia = otherData.getValue(i,2) ;
+        var dataAtividade = otherData.getValue(i,3) ;
+        var nHorasAlocadas = 0 ;
+        var nDiaAno = 0 ;
+        var nColuna;
+
+        for ( nHorasAlocadas = nHorasDia ; nHorasAlocadas <= nHorasEstimadas ; nHorasAlocadas += nHorasDia )
+        {
+
+          cMesAno = (mesLiteral(dataAtividade.getMonth()+1)).substring(0,3) + "/" + dataAtividade.getFullYear()  ;
+
+          nColuna = getColunaMeses( aNomesColunas , cMesAno ) ;
+
+          var cValor = parseInt( aLinhas[nPosicao][nColuna] ) + nHorasDia ;
+
+          aLinhas[nPosicao][nColuna] = cValor.toString() ;
+
+          dataAtividade.setDate( dataAtividade.getDate() + 1 ) ;
+
+          if ( dataAtividade.getDay() == 0 || dataAtividade.getDay() == 6 )
+          {
+            dataAtividade.setDate( dataAtividade.getDate() + 1 ) ;
+          }
+
+          if ( dataAtividade.getDay() == 0 || dataAtividade.getDay() == 6 )
+          {
+            dataAtividade.setDate( dataAtividade.getDate() + 1 ) ;
+          }
+        }
+
+      }
+
+      for( var i = 0 ; i < aLinhas.length ; i++ )
+      {
+        dataTable.addRows([ aLinhas[i] ] );
+
+        for( k = 1 ; k < ( aLinhas[i].length-1 ) ; k++ )
+        {
+
+          var nHorasUteis = aHorasUteisMeses[k] * 8;
+
+          if( dataTable.getValue( nLinhasAdicionadas,k) > 0 && dataTable.getValue(nLinhasAdicionadas,k) < nHorasUteis )
+          {
+            nCorCelula = 'celula-verde';
+          }
+          else if (dataTable.getValue(nLinhasAdicionadas,k) == nHorasUteis )
+          {
+            nCorCelula = 'celula-azul';
+          }
+          else if (dataTable.getValue(nLinhasAdicionadas,k) > nHorasUteis )
+          {
+            nCorCelula = 'celula-vermelho';
+          }
+          else if (dataTable.getValue(nLinhasAdicionadas,k) == 0 )
+          {
+            nCorCelula = 'celula-cinza';
+          }
+          var cLink = '<a href="alocacao_recurso.html?id_recurso=' + dataTable.getValue(nLinhasAdicionadas,aLinhas[i].length-1) + '&cMes='+ aNomesColunas[k]+'">' + '<font color=black>' + dataTable.getValue(nLinhasAdicionadas,k) + '</font>'+'</a>';
+          dataTable.setCell( nLinhasAdicionadas , k , cLink , null , {'className': nCorCelula } );
+
+        }
+
+        nLinhasAdicionadas++;
+
+      }
+
+      var options = {   frozenColumns: 1,
+                        showRowNumber: true,
+                        'allowHtml': true,
+                         firstRowNumber:2,
+                        timeline: { colorByRowLabel: true },
+                        backgroundColor: '#ffd',
+      };
+
+      var table = new google.visualization.Table(document.getElementById('table1_div'));
+      table.draw(dataTable, options);
+
+    }
+
+    function getColunaMeses( aMeses, cMesAno )
+    {
+
+      var nPosicaoColuna;
+
+      for ( var i = 0 ; i < aMeses.length ; i++ )
+      {
+
+
+        if(aMeses[i] == cMesAno)
+        {
+          nPosicaoColuna = i;
+        }
+      }
+
+      return nPosicaoColuna;
+
+
+    }
+
+    </script>
+
+  </head>
+
+  <body>
+
+    <div id="header"></div>
+
+    <container>
+        <div class="row" style="height:500px">
+        <div id="table1_div" style="font-size:16px;font-family: Raleway;letter-spacing: 0.6px;position:relative;overflow-x:auto;padding-top: -10px;
+height:500px;"></div>      </div>
+
+    </container>
+
+    <div id="footer"></div>
+
+  </body>
+
+</html>
+

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+  <head>
+   <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+
+    <script type="text/javascript">
+
+    google.load('visualization', '1', { packages: ['table']});
+
+    var visualization;
+
+    google.setOnLoadCallback(drawQuadro);
+
+    var variaveis=location.search.split("?");
+
+    var avariaveis = variaveis[1].split("=");
+
+    var id_grupo = avariaveis[1];
+
+    function drawQuadro()
+    {
+
+      var aEntidade = getPlanilha( "comparativo" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      if( id_grupo != 'Total' &&  id_grupo != 'Geral')
+      {
+        var stringquery='SELECT B,H,C,D,E,F,M WHERE B > 0 AND L = "' + id_grupo + '"';
+      }
+      else if ( id_grupo == 'Total' )
+      {
+        var stringquery='SELECT B,H,C,D,E,F,M WHERE B > 0 AND L != "EXTRA_ORCAMENTO" AND L != "INVESTIMENTOS" AND L != "Sem_Grupo"' ;
+      }
+      else if ( id_grupo == 'Geral' )
+      {
+        var stringquery='SELECT B,H,C,D,E,F,M WHERE B > 0 ';//AND L != "Sem_Grupo"' ;
+      }
+
+      query.setQuery(stringquery);
+      query.send(handleQueryResponse);
+
+    }
+
+    function handleQueryResponse(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+      var otherData = response.getDataTable();
+
+      var data = new google.visualization.DataTable();
+
+      var status_imagem_periodo = './imagens/circulo_verde.png';
+
+      var status_imagem_ano = './imagens/circulo_verde.png';
+
+      var percent_realizado_periodo = 0;
+
+      var percent_realizado_ano = 0;
+
+      var percent_realizado_ano_proporcional = 0;
+
+      var nCor = "green accent-3";
+
+      data.addColumn('number', 'conta');
+      data.addColumn('string', 'nome');
+      data.addColumn('number', 'orçado_ano');
+      data.addColumn('number', 'orçado_período');
+      data.addColumn('number', 'realizado');
+      data.addColumn('number', 'comprometido');
+      data.addColumn('number', 'disponível');
+      data.addColumn('number', '%_real_ano');
+      data.addColumn('number', '%_desloc');
+      data.addColumn('string', 'abrir');
+      data.addColumn('string', 'indic');
+      data.addColumn('string', 'forne');
+      data.addColumn('string', 'compr');
+
+      var valor_realizado = 0;
+      var valor_orcado_periodo = 0;
+      var valor_orcado_ano = 0;
+      var valor_comprometido = 0;
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+
+        var conta=otherData.getValue(i, 0);
+        valor_realizado = otherData.getValue(i, 3);
+        valor_orcado_periodo = otherData.getValue(i, 4);
+        valor_orcado_ano = otherData.getValue(i, 2);
+        nmConta = otherData.getValue(i, 1);
+
+        if(valor_realizado == -0)
+        {
+          valor_realizado = 0;
+        }
+
+        if(valor_realizado == 0 && valor_orcado_periodo == 0)
+        {
+          percent_realizado_periodo = 0;
+          percent_realizado_ano = 0;
+          percent_realizado_ano_proporcional = 0 ;
+        }
+        else if(valor_orcado_periodo == 0)
+        {
+          percent_realizado_periodo = 100,00;
+          percent_realizado_ano = 100,00;
+          percent_realizado_ano_proporcional = 100 ;
+        }
+        else
+        {
+          percent_realizado_periodo = (valor_realizado / valor_orcado_periodo) * 100;
+          percent_realizado_ano = (valor_realizado / valor_orcado_ano) * 100;
+          percent_realizado_ano_proporcional = ( (valor_orcado_periodo/valor_orcado_ano )*100  ) - percent_realizado_ano ;
+        }
+
+        nCor = getColorValor(( valor_orcado_ano - valor_realizado-otherData.getValue(i, 6) ));
+
+        if( valor_orcado_ano == null )
+        {
+          valor_orcado_ano = 0 ;
+        }
+
+        if( valor_realizado == null )
+        {
+          valor_realizado = 0 ;
+        }
+
+        if( valor_orcado_periodo == null )
+        {
+          valor_orcado_periodo = 0 ;
+        }
+
+        valor_comprometido = otherData.getValue(i, 6);
+        if( valor_comprometido == null );
+        {
+          valor_comprometido = 0;
+        }
+
+
+        data.addRows([
+                       [conta,
+                       otherData.getValue(i, 1),
+                       parseFloat( ( valor_orcado_ano ).toFixed(0)),
+                       parseFloat( valor_orcado_periodo.toFixed(0)),
+                       parseFloat( valor_realizado.toFixed(0)),
+                       parseFloat( valor_comprometido.toFixed(0)),
+                       parseFloat( ( valor_orcado_ano - valor_realizado-otherData.getValue(i, 6) ).toFixed(0)),
+                       parseFloat(percent_realizado_ano.toFixed(2)),
+                       parseFloat(percent_realizado_ano_proporcional.toFixed(2)),
+                       '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_lancamentos.html?id_conta='+conta+'&nm_conta='+otherData.getValue(i, 1)+'"><i class="material-icons">add</i></a>',
+                       '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_grafico_orcado_realizado.html?id_conta='+conta+'&nm_conta='+otherData.getValue(i, 1)+'"><i class="material-icons">bar_chart</i></a>',
+                       '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_favorecidos.html?id_conta='+ otherData.getValue(i, 0) +'&nm_conta='+otherData.getValue(i, 1)+'"><i class="material-icons">add</i></a>',
+                       '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_comprometido.html?id_conta='+ otherData.getValue(i, 0) +'&nm_conta='+otherData.getValue(i, 1)+'"><i class="material-icons">add</i></a>',
+
+                       ]
+         ]);
+      }
+
+
+      var table = new google.visualization.Table(document.getElementById('table1_div'));
+      table.draw(data, {showRowNumber: false, allowHtml: true});
+
+      document.getElementById("div_Grupo").innerHTML = "Contas do grupo <B>" + id_grupo + '<B>';
+
+    }
+
+    </script>
+
+  </head>
+
+  <body style="overflow-y:scroll;">
+
+    <div id="header"></div>
+
+    <container style="margin:15px;font-size:16px;font-family: Raleway;letter-spacing: 0.6px;">
+
+    <a class="waves-effect waves-blue btn-small " onclick="window.history.go(-1)" style="color: black;" ><i class="material-icons left">navigate_before</i>voltar</a>
+
+      <div id="div_Grupo" ></div>
+            <br>
+
+      <div id="table1_div" style="font-size:16px;font-family: Raleway;letter-spacing: 0.6px;position:relative;overflow-y:auto;padding-top: -10px;
+height:600px;"></div>
+
+    </container>
+
+    <div id="footer"></div>
+
+  </body>
+
+</html>
+

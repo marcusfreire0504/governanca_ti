@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+
+    <script type="text/javascript">
+    google.load('visualization', '1', { packages: ['table','corechart']});
+
+    var visualization;
+    var dataPwcSituacao;
+    var chartPwcSituacao;
+    var dataBdoSituacao;
+    var chartBdoSituacao;
+    var aListaPontos = [] ;
+    var aListaStatus = [] ;
+
+    google.setOnLoadCallback(drawTabela);
+    google.setOnLoadCallback(drawTableBdo);
+    google.setOnLoadCallback(drawGraficoPwcSituacao);
+    google.setOnLoadCallback(drawGraficoBdoSituacao);
+
+    function buscaStatus(cAud,id_ponto)
+    {
+      var nItem;
+
+      for (var i = 0; i < aListaStatus.length; i++)
+      {
+        if( aListaStatus[i][0] == cAud && aListaStatus[i][1] == id_ponto)
+        {
+          nItem = i ;
+        }
+      }
+      return nItem;
+    }
+
+    function drawTabela()
+    {
+      apuraStatusGeral() ;
+
+      var stringquery='SELECT A,D,E WHERE D <> "" ';
+
+      var aEntidade = getPlanilha( "pwc" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      query.setQuery(stringquery);
+
+      query.send(handleQueryResponse1);
+
+    }
+
+    function handleQueryResponse1(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+      var otherData = response.getDataTable();
+
+      var dataPontos = new google.visualization.DataTable();
+
+      var cAuditoria = "pwc" ;
+
+      var cStatus;
+
+      for (var i = 0; i < aListaStatus.length; i++)
+      {
+        //alert( aListaStatus[i][0] + " / " + aListaStatus[i][1] + " / " + aListaStatus[i][2] ) ;
+      }
+
+      aListaPontos = [] ;
+
+      dataPontos.addColumn('string', 'aud');
+      dataPontos.addColumn('string', 'id');
+      dataPontos.addColumn('string', 'assunto');
+      dataPontos.addColumn('string', 'nome');
+      dataPontos.addColumn('string', 'status');
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+
+        aListaPontos.push([  cAuditoria,
+                             otherData.getValue(i, 0).toString(),
+                             otherData.getValue(i, 1),
+                             '<a href="ad_fichaauditoria.html?id_frente=' + cAuditoria + '&id_ponto=' + otherData.getValue(i, 0) + '">' + otherData.getValue(i, 2) + '</a>',
+                             aListaStatus[ buscaStatus( cAuditoria, otherData.getValue(i, 0) )][2]
+                          ]);
+
+      }
+
+      //drawTableBdo();
+
+      for (var i = 0; i < aListaPontos.length; i++)
+      {
+        dataPontos.addRows([
+                             aListaPontos[i]
+                           ]);
+
+
+      }
+
+      var table = new google.visualization.Table(document.getElementById('div_pontos'));
+      table.draw(dataPontos, {showRowNumber: false, allowHtml: true});
+
+    }
+
+    //--------------------BDO
+    function drawTableBdo()
+    {
+
+      var stringquery='SELECT A,D,E WHERE D <> "" ';
+
+      var aEntidade = getPlanilha( "bdo" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      query.setQuery(stringquery);
+
+      query.send(handleQueryResponseBdo);
+
+    }
+
+    function handleQueryResponseBdo(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+      var cAba = "&sheet=bdo";
+      var cUrl = "https://docs.google.com/spreadsheets/d/1wO3ruQPx7UjDn7UvHLlX5GyBiti6APcp8W0EiPpl-yE/edit?usp=sharing";
+      var cSelect = 'SELECT B,COUNT(B) WHERE B <>"" GROUP BY B';
+
+      var otherData = response.getDataTable();
+      var data = new google.visualization.DataTable();
+      var cAuditoria = "bdo" ;
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+         aListaPontos.push([  cAuditoria,
+                              otherData.getValue(i, 0).toString(),
+                              otherData.getValue(i, 1),
+                              '<a href="ad_fichaauditoria.html?id_frente=' + cAuditoria + '&id_ponto=' + otherData.getValue(i, 0) + '">' + otherData.getValue(i, 2) + '</a>',
+                           ]);
+      }
+      return;
+    }
+
+    //--------------------------------------------------------------------------------------------------------------
+    function drawGraficoPwcSituacao()
+    {
+
+      var stringquery='SELECT B,COUNT(B) WHERE B <>"" GROUP BY B';
+
+      var aEntidade = getPlanilha( "pwc" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      query.setQuery(stringquery);
+
+      query.send(handleQueryResponse);
+
+    }
+
+    function handleQueryResponse(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+     let aCores  = { "Executando":"#FFFF66",
+                     "Finalizado":"#77933C",
+                     "Nao iniciado":"#808080",
+                     "Parado":"#FF0000"
+                   };
+
+
+      var aCoresGrafico = new Array();
+
+      var otherData = response.getDataTable();
+
+      dataPwcSituacao = new google.visualization.DataTable();
+
+      dataPwcSituacao.addColumn('string', 'status');
+      dataPwcSituacao.addColumn('number', 'total');
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+
+        dataPwcSituacao.addRows([
+                       [ otherData.getValue(i, 0),
+                         otherData.getValue(i, 1)
+                       ]
+                     ]);
+
+        aCoresGrafico.push( aCores[ otherData.getValue(i, 0) ]);
+
+      }
+
+      var options = {
+                        title: 'PWC - Situação',
+                        titleTextStyle: { fontSize:16 },
+                        pieHole: 0.4,
+                        width: 400,
+                        height: 400,
+                        bar: {groupWidth: "95%"},
+                        legend: { position: "bottom",textStyle: {fontSize: 14},alignment: 'center',maxLines: 2 },
+                        pieSliceTextStyle: { color: 'white',fontSize: 14 },
+                        sliceVisibilityThreshold: 0,
+                        colors: aCoresGrafico,
+                        chartArea:{left:0}
+                       };
+
+      chartPwcSituacao = new google.visualization.PieChart(document.getElementById('status_pwc'));
+      google.visualization.events.addListener(chartPwcSituacao, 'select', selectHandler);
+      chartPwcSituacao.draw(dataPwcSituacao, options);
+
+    }
+
+    //--------------------------------------------------------------------------------------------------------------
+    function drawGraficoBdoSituacao()
+    {
+
+      var stringquery='SELECT B,COUNT(B) WHERE B <>"" GROUP BY B';
+
+      var aEntidade = getPlanilha( "bdo" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      query.setQuery(stringquery);
+
+      query.send(handleQueryResponse3);
+
+    }
+
+    function handleQueryResponse3(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+     let aCores  = { "Executando":"#FFFF66",
+                     "Finalizado":"#77933C",
+                     "Nao iniciado":"#808080",
+                     "Parado":"#FF0000"
+                   };
+
+      var aCoresGrafico = new Array();
+
+      var otherData = response.getDataTable();
+
+      dataBdoSituacao = new google.visualization.DataTable();
+
+      dataBdoSituacao.addColumn('string', 'status');
+      dataBdoSituacao.addColumn('number', 'total');
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+
+        dataBdoSituacao.addRows([
+                       [ otherData.getValue(i, 0),
+                         otherData.getValue(i, 1)
+                       ]
+                     ]);
+
+        aCoresGrafico.push( aCores[ otherData.getValue(i, 0) ]);
+
+      }
+
+      var options = {
+                        title: 'BDO - Situação',
+                        titleTextStyle: { fontSize:16 },
+                        pieHole: 0.4,
+                        width: 400,
+                        height: 400,
+                        bar: {groupWidth: "95%"},
+                        legend: { position: "bottom",textStyle: {fontSize: 14},alignment: 'center',maxLines: 2 },
+                        pieSliceTextStyle: { color: 'white',fontSize: 14 },
+                        sliceVisibilityThreshold: 0,
+                        colors: aCoresGrafico,
+                        chartArea:{left:0}
+                       };
+
+      chartBdoSituacao = new google.visualization.PieChart(document.getElementById('status_bdo'));
+      google.visualization.events.addListener(chartBdoSituacao, 'select', selectHandler3);
+      chartBdoSituacao.draw(dataBdoSituacao, options);
+
+    }
+
+    //--------------------------------------------------------------------------------------------------------------
+    function selectHandler(e) {
+        var selectedItem = chartPwcSituacao.getSelection()[0];
+        var value = dataPwcSituacao.getValue(selectedItem.row, 0);
+        var cUrl = 'ad_listar_auditoria.html?id_frente=pwc&grafico=situacao&valor=' + value;
+        location.href = cUrl;
+        //window.open(cUrl);
+       }
+
+
+    //--------------------------------------------------------------------------------------------------------------
+    function selectHandler3(e) {
+        var selectedItem = chartBdoSituacao.getSelection()[0];
+        var value = dataBdoSituacao.getValue(selectedItem.row, 0);
+        var cUrl = 'ad_listar_auditoria.html?id_frente=bdo&grafico=situacao&valor=' + value;
+        window.open(cUrl);       }
+
+
+    //---------
+    // ------------------------
+    function apuraStatusGeral()
+    {
+
+      var stringquery='SELECT B,D,L,G,H,I,J,F,Q,E,A WHERE A<>""';
+
+      var aEntidade = getPlanilha( "plano" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      query.setQuery(stringquery);
+
+      query.send(handleQueryResponseStatus);
+
+    }
+
+    // -----------------------------------------
+    function handleQueryResponseStatus(response)
+    {
+      if (response.isError())
+      {
+        alert('Error in query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+        return;
+      }
+
+      var otherData = response.getDataTable();
+      var aValores = [];
+      var hoje = new Date();
+      var dataInicio = hoje;
+      var dataFim = hoje;
+      var percentual_informado = 0;
+      var percentual_decorrido = 0;
+      var nDiasUteisFase = 0;
+      var nDiasUteisDecorridos = 0;
+      var total_horas_estimadas = 0;
+      var id_ponto;
+      var cAud;
+
+      var colorMap = {
+                       azul:"#3366CC",
+                       vermelho:"#FF0000",
+                       verde:"#77933C",
+                       amarelo:"#FFFF66",
+                       cinza:"#808080",
+                      };
+
+      var colorMaplighten = {
+                               azul:"#bbdefb",
+                               vermelho:"#ef9a9a",
+                               verde:"#c8e6c9",
+                               amarelo:"#FFFF66",
+                               cinza:"#bdbdbd",
+                            };
+
+
+      var cAud = "" ;
+      var id_ponto = 0 ;
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+
+        if( otherData.getValue(i, 0) != id_ponto || otherData.getValue(i, 10) != cAud )
+        {
+          cAud = otherData.getValue(i, 10) ;
+          id_ponto = otherData.getValue(i, 0) ;
+          aValores = [] ;
+          total_horas_estimadas = 0;
+        }
+
+        while( otherData.getValue(i, 0) == id_ponto &&  otherData.getValue(i, 10) == cAud && i < otherData.getNumberOfRows() )
+        {
+
+          id_ponto = otherData.getValue(i, 0) ;
+
+          cAud = otherData.getValue(i, 10) ;
+
+          percentual_informado = otherData.getValue(i, 5) ;
+
+          if( percentual_informado == null )
+          {
+            percentual_informado = 0 ;
+          }
+
+          if( otherData.getValue(i, 3) < dataInicio )
+          {
+            dataInicio = otherData.getValue(i, 3) ;
+          }
+
+          if( otherData.getValue(i, 4) > dataFim )
+          {
+            dataFim = otherData.getValue(i, 4) ;
+          }
+
+          nDiasUteisFase = diasUteis( otherData.getValue(i, 3) , otherData.getValue(i, 4) ) ;
+
+          nDiasUteisDecorridos = diasUteis( otherData.getValue(i, 3), hoje) ;
+
+          percentual_decorrido = nDiasUteisDecorridos / nDiasUteisFase * 100 ;
+
+          if( otherData.getValue(i, 3) > hoje )
+          {
+            percentual_informado = 0.01 ;
+          }
+
+          total_horas_estimadas += otherData.getValue(i, 9);
+
+          aValores.push( new Array( otherData.getValue(i, 9), percentual_informado, percentual_decorrido , otherData.getValue(i, 3) , otherData.getValue(i, 4)) ) ;
+
+          i++;
+        }
+
+        i--;
+
+        var aStatus = apuraStatus( aValores , total_horas_estimadas ) ;
+
+        aListaStatus.push( [ otherData.getValue(i, 0) , otherData.getValue(i, 10) , aStatus["status"] ] ) ;
+
+      }
+
+      var aStatus = apuraStatus( aValores , total_horas_estimadas ) ;
+      aListaStatus.push( [ otherData.getValue(i, 0) , otherData.getValue(i, 10) , aStatus["status"] ] ) ;
+      //alert( 'total ' + aListaStatus.length ) ;
+
+     }
+
+    //----------
+
+    </script>
+
+  </head>
+  <body>
+
+    <div id="header"></div>
+
+    <container>
+
+    <div class="row" style="min-height:100px;">
+         <div id="div_pontos"  class="col s12 m6" ></div>
+         <div id="status_pwc"  class="col s12 m3" ></div>
+         <div id="status_bdo"  class="col s12 m3" ></div>
+    </div>
+
+    </container>
+
+    <div id="footer"></div>
+
+  </body>
+</html>
+

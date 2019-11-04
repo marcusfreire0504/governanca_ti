@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+  <head>
+
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+
+    <script type="text/javascript">
+
+    google.load('visualization', '1', { packages: ['table']});
+
+    var variaveis=location.search.split("?");
+
+    var variavel = variaveis[1].split("=");
+
+    var cAno = variavel[1];
+
+    var aContasRealizados = [] ;
+
+    var visualization;
+
+    var nMesReferencia = 0 ;
+
+    var dataMaior = new Date( cAno + '-01-01');
+  //  var dataMaior = new Date( '2018-01-01');
+
+    google.setOnLoadCallback(selecionaRealizados);
+
+    // -----------------------------------------------------------------------------------------------------------------------------
+    // popula a matriz aContasRealizados com os valores gravados na aba lancamentos da planilha (valores realizados para cada conta)
+    function selecionaRealizados()
+    {
+
+      var aEntidade = getPlanilha( "orcamentorealizado_" + cAno ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      var stringquery='SELECT G,I,K,L,M,E WHERE G > 0 and L<>"Sem_Grupo"';
+
+      query.setQuery(stringquery);
+
+      query.send(handleQueryResponseRealizados);
+
+    }
+
+    function handleQueryResponseRealizados(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+      var otherData = response.getDataTable();
+
+      var data = new google.visualization.DataTable();
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+
+        var encontrou = "N";
+
+        if( otherData.getValue(i,1) >= nMesReferencia )
+        {
+          nMesReferencia = otherData.getValue(i,1) ;
+          if( otherData.getValue(i,5) >= dataMaior )
+          {
+            dataMaior = otherData.getValue(i,5);
+          }
+        }
+
+        for (var k = 0; k < aContasRealizados.length; k++)
+        {
+          if( aContasRealizados[k][0] == otherData.getValue(i,0) )
+          {
+             var nPosicao = k;
+             encontrou = "S";
+          }
+         }
+
+         if( encontrou == "N" )
+         {
+           var nPosicao = null;
+         }
+
+         if( nPosicao == null )
+         {
+           aContasRealizados.push( new Array(otherData.getValue(i,0),0,0,0,0,0,0,0,0,0,0,0,0));
+         }
+         else
+         {
+           aContasRealizados[nPosicao][otherData.getValue(i,1)] +=  otherData.getValue(i,2) ;
+         }
+
+      }
+
+      drawQuadro();
+    }
+
+    function drawQuadro()
+    {
+
+      var aEntidade = getPlanilha( "comparativo_" + cAno ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      var stringquery='SELECT L,SUM(C),SUM(D),SUM(E),SUM(M) WHERE B > 0 AND L<>"" AND L<>"Sem_Grupo" GROUP BY L';
+
+      query.setQuery(stringquery);
+
+      query.send(handleQueryResponse);
+
+    }
+
+    function handleQueryResponse(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+      var nLinhasGrupos = 0;
+
+      var otherData = response.getDataTable();
+
+      var data = new google.visualization.DataTable();
+
+      var percent_realizado_periodo = 0;
+
+      var percent_realizado_ano = 0;
+
+      var percent_realizado_ano_proporcional = 0;
+
+      var percent_esperado = 0;
+
+      var nCor = "green accent-3";
+
+      var tot_Valor_orcado_ano = 0;
+      var tot_Valor_orcado_periodo = 0;
+      var tot_Valor_realizado = 0;
+      var tot_Valor_comprometido = 0;
+      var tot_Disponivel = 0;
+      var tot_percent_realizado_periodo = 0;
+      var tot_percent_esperado = 0;
+      var tot_percent_realizado_ano = 0;
+      var tot_percent_realizado_ano_proporcional = 0;
+      var nLinhaInvestimentos = 0;
+      var nLinhaAporteAdicional = 0;
+
+      data.addColumn('string', 'grupo');
+      data.addColumn('number', 'orçado_ano');
+      data.addColumn('number', 'orçado_período');
+      data.addColumn('number', 'realizado');
+      data.addColumn('number', 'comprometido');
+      data.addColumn('number', 'disponível');
+      data.addColumn('number', '%_previsto');
+      data.addColumn('number', '%_real_ano');
+      data.addColumn('number', '%_desloc');
+      data.addColumn('string', 'abrir');
+      data.addColumn('string', 'indic');
+      data.addColumn('string', 'forne');
+      data.addColumn('string', 'compr');
+      data.addColumn('string', 'fecha');
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+
+        if( otherData.getValue(i, 0) !='INVESTIMENTOS' && otherData.getValue(i, 0) != 'EXTRA_ORCAMENTO' )
+        {
+
+          nLinhasGrupos++;
+          valor_realizado = otherData.getValue(i, 2);
+          valor_orcado_periodo = otherData.getValue(i, 3);
+          valor_orcado_ano = otherData.getValue(i, 1);
+
+          if(valor_realizado == -0)
+          {
+            valor_realizado = 0;
+          }
+
+          if(valor_realizado == 0 && valor_orcado_periodo == 0)
+          {
+            percent_realizado_periodo = 0 ;
+            percent_realizado_ano = 0 ;
+            percent_realizado_ano_proporcional = 0 ;
+            percent_esperado = 0 ;
+          }
+          else if(valor_orcado_periodo == 0)
+          {
+            percent_realizado_periodo = 100,00;
+            percent_realizado_ano = 100,00;
+            percent_realizado_ano_proporcional = 100,00 ;
+            percent_esperado = 100,00 ;
+          }
+          else
+          {
+            percent_realizado_periodo = (valor_realizado / valor_orcado_periodo) * 100;
+            percent_realizado_ano = (valor_realizado / valor_orcado_ano) * 100;
+            percent_esperado = ( (valor_orcado_periodo / valor_orcado_ano ) * 100 );
+            percent_realizado_ano_proporcional = ( percent_esperado - percent_realizado_ano );
+          }
+
+          var nValorDisponivel = ( valor_orcado_ano - valor_realizado - otherData.getValue(i, 4) );
+
+
+          // definindo o sinal do status de acordo com o percentual realizado sobre o orçado para o ano
+          // nCor = getColorValor(percent_realizado_ano_proporcional);
+          nCor = getColorValor(nValorDisponivel);
+
+          // alert( valor_orcado_ano + "  " + valor_orcado_ano.toLocaleString('pt-BR') );
+
+          data.addRows([
+                         [
+                           otherData.getValue(i, 0),
+                           parseFloat(valor_orcado_ano.toFixed(0)),
+                           parseFloat(valor_orcado_periodo.toFixed(0)),
+                           parseFloat(valor_realizado.toFixed(0)),
+                           parseFloat(otherData.getValue(i, 4).toFixed(0)),
+                           parseFloat( nValorDisponivel.toFixed(0) ),
+                           parseFloat( percent_esperado.toFixed(2)),
+                           parseFloat( percent_realizado_ano.toFixed(2)),
+                           parseFloat( percent_realizado_ano_proporcional.toFixed(2)),
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_contas.html?id_grupo='+ otherData.getValue(i, 0) +'&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_grafico_orcado_realizado.html?nm_grupo='+ otherData.getValue(i, 0)+'&ano='+cAno+'"><i class="material-icons">bar_chart</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_favorecidos.html?nm_grupo='+ otherData.getValue(i, 0) + '&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_comprometido.html?nm_grupo='+ otherData.getValue(i, 0) +'&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_fechamento.html?nm_grupo='+ otherData.getValue(i, 0) +'&ano='+cAno+'"><i class="material-icons">add</i></a>',
+
+                         ]
+                        ]);
+
+          tot_Valor_orcado_ano += valor_orcado_ano ;
+          tot_Valor_orcado_periodo += valor_orcado_periodo ;
+          tot_Valor_realizado += valor_realizado ;
+          tot_Valor_comprometido += otherData.getValue(i, 4);
+          tot_Disponivel += ( valor_orcado_ano - valor_realizado - otherData.getValue(i, 4)) ;
+
+        }
+        else if (otherData.getValue(i, 0) == 'INVESTIMENTOS')
+        {
+          // para guardar a posíção dos valores de Investimentos na matriz
+          nLinhaInvestimentos = i ;
+        }
+        else if (otherData.getValue(i, 0) == 'EXTRA_ORCAMENTO')
+        {
+          // para guardar a posíção dos valores de Investimentos na matriz
+          nLinhaAporteAdicional = i ;
+        }
+      }
+
+      // ----------------------------------------------------------------------------------------------------
+      // bloco para calcular os totais e incluir o Total na Div
+      tot_percent_realizado_periodo = (tot_Valor_realizado / tot_Valor_orcado_periodo) * 100;
+      tot_percent_realizado_ano = (tot_Valor_realizado / tot_Valor_orcado_ano) * 100;
+      tot_percent_esperado = ( (tot_Valor_orcado_periodo / tot_Valor_orcado_ano ) * 100 );
+      tot_percent_realizado_ano_proporcional = ( tot_percent_esperado - tot_percent_realizado_ano );
+
+      nCor = getColorValor(tot_Disponivel);
+
+      data.addRows([
+                       [
+                         '<B>'+'Total',
+                         parseFloat( tot_Valor_orcado_ano.toFixed(0)),
+                         parseFloat( tot_Valor_orcado_periodo.toFixed(0)),
+                         parseFloat( tot_Valor_realizado.toFixed(0)),
+                         parseFloat( tot_Valor_comprometido.toFixed(0)),
+                         parseFloat( tot_Disponivel.toFixed(0)),
+                         parseFloat( tot_percent_esperado.toFixed(2)),
+                         parseFloat( tot_percent_realizado_ano.toFixed(2)),
+                         parseFloat( tot_percent_realizado_ano_proporcional.toFixed(2)),
+                         '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_contas.html?id_grupo=Total&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                         '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_grafico_orcado_realizado.html?nm_grupo=Total&ano='+cAno+'"><i class="material-icons">bar_chart</i></a>',
+                         '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_favorecidos.html?nm_grupo=Total&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                         '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_comprometido.html?nm_grupo=Total&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                         '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_fechamento.html?nm_grupo=Total&ano='+cAno+'"><i class="material-icons">add</i></a>',
+
+                       ]
+                     ]);
+
+      //--------------------------------------------
+      // bloco para incluir a linha de Investimentos
+
+      tot_percent_esperado = ( (otherData.getValue( nLinhaInvestimentos , 3) / otherData.getValue( nLinhaInvestimentos , 1) ) * 100 );
+      tot_percent_realizado_ano = (otherData.getValue( nLinhaInvestimentos , 2) / otherData.getValue( nLinhaInvestimentos , 1)) * 100;
+      tot_percent_realizado_ano_proporcional = ( tot_percent_esperado - tot_percent_realizado_ano ) ;
+      var nDispoNivel = ( otherData.getValue(nLinhaInvestimentos , 1) - otherData.getValue( nLinhaInvestimentos , 2) - otherData.getValue(nLinhaInvestimentos, 4));
+
+      // nCor = getColorValor( tot_percent_realizado_ano_proporcional);
+      nCor = getColorValor( ( otherData.getValue(nLinhaInvestimentos , 1) - otherData.getValue( nLinhaInvestimentos , 2) - otherData.getValue(nLinhaInvestimentos, 4)));
+
+      data.addRows([
+                         [
+                           otherData.getValue( nLinhaInvestimentos , 0),
+                           parseFloat( otherData.getValue( nLinhaInvestimentos , 1).toFixed(0)),
+                           parseFloat( otherData.getValue( nLinhaInvestimentos , 3).toFixed(0)),
+                           parseFloat( otherData.getValue( nLinhaInvestimentos , 2).toFixed(0)),
+                           parseFloat( otherData.getValue( nLinhaInvestimentos , 4).toFixed(0)),
+                           parseFloat( (otherData.getValue( nLinhaInvestimentos , 1) - otherData.getValue( nLinhaInvestimentos , 2) - otherData.getValue(nLinhaInvestimentos, 4)).toFixed(0)),
+                           parseFloat( tot_percent_esperado.toFixed(2)),
+                           parseFloat( tot_percent_realizado_ano.toFixed(2)),
+                           parseFloat( tot_percent_realizado_ano_proporcional.toFixed(2)),
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_contas.html?id_grupo='+ otherData.getValue(nLinhaInvestimentos, 0) +'&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_grafico_orcado_realizado.html?nm_grupo='+ otherData.getValue(nLinhaInvestimentos, 0)+'&ano='+cAno+'"><i class="material-icons">bar_chart</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_favorecidos.html?nm_grupo='+ otherData.getValue(nLinhaInvestimentos, 0) +'&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_comprometido.html?nm_grupo='+ otherData.getValue(nLinhaInvestimentos, 0) +'&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                          '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_fechamento.html?nm_grupo=Geral&ano='+cAno+'"><i class="material-icons">add</i></a>',
+
+                         ]
+                        ]);
+
+      tot_Valor_orcado_ano += otherData.getValue( nLinhaInvestimentos , 1) ;
+      tot_Valor_orcado_periodo += otherData.getValue( nLinhaInvestimentos , 3) ;
+      tot_Valor_realizado += otherData.getValue( nLinhaInvestimentos , 2) ;
+      tot_Valor_comprometido += otherData.getValue( nLinhaInvestimentos , 4) ;
+      tot_Disponivel += ( otherData.getValue( nLinhaInvestimentos , 1) - otherData.getValue( nLinhaInvestimentos , 2) - otherData.getValue(nLinhaInvestimentos, 4));
+
+      //-----------------------------------------------
+      // bloco para incluir a linha de Aporte adicional
+      tot_percent_esperado = ( (otherData.getValue( nLinhaAporteAdicional , 3) / otherData.getValue( nLinhaAporteAdicional , 1) ) * 100 );
+      tot_percent_realizado_ano = (otherData.getValue( nLinhaAporteAdicional , 2) / otherData.getValue( nLinhaAporteAdicional , 1)) * 100;
+      tot_percent_realizado_ano_proporcional = ( tot_percent_esperado - tot_percent_realizado_ano ) ;
+
+      // nCor = getColorValor( tot_percent_realizado_ano_proporcional );
+      nCor = getColorValor( otherData.getValue( nLinhaAporteAdicional , 1) - otherData.getValue( nLinhaAporteAdicional , 2) - otherData.getValue(nLinhaAporteAdicional, 4) );
+
+      data.addRows([
+                         [
+                           otherData.getValue( nLinhaAporteAdicional , 0),
+                           parseFloat( otherData.getValue( nLinhaAporteAdicional , 1).toFixed(0)),
+                           parseFloat( otherData.getValue( nLinhaAporteAdicional , 3).toFixed(0)),
+                           parseFloat( (otherData.getValue( nLinhaAporteAdicional , 2)+0).toFixed(0)),
+                           parseFloat( otherData.getValue( nLinhaAporteAdicional , 4).toFixed(0)),
+                           otherData.getValue( nLinhaAporteAdicional , 1) - otherData.getValue( nLinhaAporteAdicional , 2) - otherData.getValue(nLinhaAporteAdicional, 4),
+                           parseFloat( tot_percent_esperado.toFixed(2)),
+                           parseFloat( tot_percent_realizado_ano.toFixed(2)),
+                           parseFloat( tot_percent_realizado_ano_proporcional.toFixed(2)),
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_contas.html?id_grupo='+ otherData.getValue(nLinhaAporteAdicional, 0) +'&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_grafico_orcado_realizado.html?nm_grupo='+ otherData.getValue(nLinhaAporteAdicional, 0)+'&ano='+cAno+'"><i class="material-icons">bar_chart</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_favorecidos.html?nm_grupo='+ otherData.getValue(nLinhaAporteAdicional, 0) +'&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_comprometido.html?nm_grupo='+ otherData.getValue(nLinhaAporteAdicional, 0) +'&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_fechamento.html?nm_grupo=Total&ano='+cAno+'"><i class="material-icons">add</i></a>',
+
+                         ]
+                    ]);
+
+      tot_Valor_orcado_ano += otherData.getValue( nLinhaAporteAdicional , 1) ;
+      tot_Valor_orcado_periodo += otherData.getValue( nLinhaAporteAdicional , 3) ;
+      tot_Valor_realizado += otherData.getValue( nLinhaAporteAdicional , 2) ;
+      tot_Valor_comprometido += otherData.getValue( nLinhaAporteAdicional , 4) ;
+      tot_Disponivel += ( otherData.getValue( nLinhaAporteAdicional , 1) - otherData.getValue( nLinhaAporteAdicional , 2) - otherData.getValue(nLinhaAporteAdicional, 4));
+
+      //-----------------------------------------------
+      // bloco para incluir a linha de total geral
+
+      tot_percent_realizado_periodo = (tot_Valor_realizado / tot_Valor_orcado_periodo) * 100;
+      tot_percent_realizado_ano = (tot_Valor_realizado / tot_Valor_orcado_ano) * 100;
+      tot_percent_esperado = ( (tot_Valor_orcado_periodo / tot_Valor_orcado_ano ) * 100 );
+      tot_percent_realizado_ano_proporcional = ( tot_percent_esperado - tot_percent_realizado_ano );
+
+      //nCor = getColorValor( tot_percent_realizado_ano_proporcional );
+      nCor = getColorValor( tot_Disponivel );
+
+      data.addRows([
+                         [
+                           'Total Geral',
+                           parseFloat( tot_Valor_orcado_ano.toFixed(0)),
+                           parseFloat( tot_Valor_orcado_periodo.toFixed(0)),
+                           parseFloat( tot_Valor_realizado.toFixed(0)),
+                           parseFloat( tot_Valor_comprometido.toFixed(0)),
+                           parseFloat( tot_Disponivel.toFixed(0)),
+                           parseFloat( tot_percent_esperado.toFixed(2)),
+                           parseFloat( tot_percent_realizado_ano.toFixed(2)),
+                           parseFloat( tot_percent_realizado_ano_proporcional.toFixed(2)),
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_contas.html?id_grupo=Geral&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_grafico_orcado_realizado.html?nm_grupo=Geral&ano='+cAno+'"><i class="material-icons">bar_chart</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_favorecidos.html?nm_grupo=Geral&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_comprometido.html?nm_grupo=Geral&ano='+cAno+'"><i class="material-icons">add</i></a>',
+                           '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="orc_fechamento.html?nm_grupo=Geral&ano='+cAno+'"><i class="material-icons">add</i></a>',
+
+                         ]
+                        ]);
+
+      //------------------------------------
+      // destacando em azul a linha de total
+
+      var cssClassNames = { 'tableRow': '',
+                            'oddTableRow': 'beige-background',
+                            'selectedTableRow': 'orange-background large-font',
+                            'tableCell': 'large-font',
+                            'rowNumberCell': 'underline-blue-font',
+                            };
+
+      for (var i = 0; i <= 8 ; i++)
+      {
+        data.setCell(nLinhasGrupos, i, data.getValue(nLinhasGrupos,i), null, {'className': 'total-font'});
+      }
+
+      for (var i = 0; i <= 8 ; i++)
+      {
+        data.setCell(nLinhasGrupos+3, i, data.getValue(nLinhasGrupos+3,i), null, {'className': 'total-font'});
+      }
+
+      var options = {'showRowNumber': false, 'allowHtml': true, 'cssClassNames': cssClassNames,scrollLeftStartPosition : 50};
+
+      var table = new google.visualization.Table(document.getElementById('table1_div'));
+
+      table.draw(data, options);
+
+      document.getElementById("div_mesReferencia").innerHTML = "<B>Data mais recente : </B>" + dataMaior.toLocaleDateString('pt-Br');
+      document.getElementById("div_fechamento").innerHTML ='Fechamento 12/2018 ' + '<a class="btn-floating btn-small waves-effect waves-light ' + nCor + '" href="./arquivos/orcamento_analise_12_2018.pdf"><i class="material-icons">done</i>Clique aqui para visualizar o fechamento de 12/2018</a>';
+
+      document.getElementById("div_explicacao").innerHTML =  '<b>orçado_período</b> = percentual orçado para o período de <b>janeiro</b> à <b>'+mesLiteral(nMesReferencia)+'</b>.<br>';
+      document.getElementById("div_explicacao").innerHTML += '<b>realizado</b> = total realizado até o dia <b>'+dataMaior.toLocaleDateString('pt-Br')+'</b>.<br>';
+      document.getElementById("div_explicacao").innerHTML += '<b>comprometido</b> = total orçado para o período de ' + mesLiteral(nMesReferencia+1) + ' à dezembro.<br>';
+      document.getElementById("div_explicacao").innerHTML += '<b>disponível</b> = total orçado para o ano - realizado - comprometido.<br>';
+      document.getElementById("div_explicacao").innerHTML += '<b>%_previsto</b> = percentual orçado para o período sobre o total orçado para o ano.<br>';
+      document.getElementById("div_explicacao").innerHTML += '<b>%_real_ano</b> = total realizado até o dia <b>'+dataMaior.toLocaleDateString('pt-Br')+'</b> sobre o total orçado para o ano.<br>';
+      document.getElementById("div_explicacao").innerHTML += '<b>%_desloc</b> = diferença entre % realizado e % previsto.<br>';
+
+    }
+
+    </script>
+
+  </head>
+
+  <body>
+
+    <div id="header"></div>
+
+    <container style="margin:15px;font-size:14px;font-family: Raleway;letter-spacing: 0.6px;">
+
+     <div class="row" style="min-height:10px;margin:1px;font-size:14px;font-family: Raleway;letter-spacing: 1px;">
+        <div id="div_mesReferencia" class="col s12 m3" style="border-width: 2px; border-color: black; border-style: solid; border-radius: 10px;margin:1px;" >Dados</div>
+        <div id="div_fechamento" class="col s12 m3" style="border-width: 2px; border-color: black; border-style: solid; border-radius: 10px;margin:1px;" >Dados</div>
+      </div>
+
+     <div class="row" style="min-height:100px;margin:1px;font-family: Raleway;letter-spacing: 1px;">
+        <div id="table1_div" class="col s12 m12 l12" style="border-width: 2px; border-color: black; border-style: solid; display: inline-block; border-radius: 10px;margin:1px;">Evolução / Realizações </div>
+     </div>
+
+     <div class="row" style="min-height:100px;margin:1px;font-size:16px;font-family: Raleway;letter-spacing: 1px;">
+        <div id="div_explicacao" class="col s12 m12 l12" style="border-width: 2px; border-color: black; border-style: solid; display: inline-block; border-radius: 10px;margin:1px;">Evolução / Realizações </div>
+     </div>
+
+    </container>
+
+    <div id="footer"></div>
+
+  </body>
+
+</html>
+

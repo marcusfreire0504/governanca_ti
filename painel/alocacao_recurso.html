@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+
+    <script type="text/javascript">
+
+    google.load('visualization', '1', { packages: ['table']});
+
+    var visualization;
+
+    google.setOnLoadCallback(drawQuadro);
+
+    var url   = window.location.search.replace("?", "");
+    var tempUrl = url.replace(/%20/g," ");
+    var itens = tempUrl.split("&");
+
+    parametro = itens[0].split("=");
+    var id_recurso= parametro[1];
+
+    parametro = itens[1].split("=");
+    var cMes = parametro[1];
+
+    // -------------------------
+    function drawQuadro()
+    {
+
+      var aEntidade = getPlanilha( "calendario" ) ;
+      var stringquery='SELECT E,G,L,J,K,B,C,F WHERE E="' + id_recurso + '" AND G > 0 ORDER BY B';
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+      query.setQuery(stringquery);
+      query.send(handleQueryResponse);
+
+    }
+
+    function handleQueryResponse(response)
+    {
+      if (response.isError())
+      {
+        alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+        return;
+      }
+
+      var aTotais = [] ;
+
+      var otherData = response.getDataTable() ;
+      var dataInicial = new Date("01/01/2018");
+      var dataFim  = new Date("12/31/2018");
+      var data = new Date("01/01/2018");
+
+      var dataTable = new google.visualization.DataTable() ;
+
+      if( cMes == "geral" )
+      {
+
+        // apura a data início
+        for ( var i = 0 ; i < otherData.getNumberOfRows() ; i++ )
+        {
+          if( otherData.getValue( i , 4) < dataInicial )
+          {
+            dataInicial = new Date( otherData.getValue( i , 4) );
+            data = new Date( otherData.getValue( i , 4) );
+
+          }
+        }
+
+
+        // apura a data fim
+        for ( var i = 0 ; i < otherData.getNumberOfRows() ; i++ )
+        {
+          if( otherData.getValue( i , 4) > dataFim )
+          {
+            dataFim = new Date( otherData.getValue( i , 4) );
+          }
+        }
+
+      }
+
+      else
+      {
+        dataInicial = new Date( cMes.substring(4,8) + "," + getMes(  cMes.substring(0,3) ) + ",01") ;
+        dataFim = new Date(dataInicial.getFullYear(), dataInicial.getMonth() + 1, 0);
+        data = new Date( cMes.substring(4,8) + "," + getMes(  cMes.substring(0,3) ) + ",01") ; ;
+      }
+
+      dataTable.addColumn( 'string', 'Name' ) ;
+
+      var nDias = 0 ;
+
+      var dataCorrente ;
+
+      var cMesAno;
+
+      var nDiasTabela = diasCorridos( dataInicial , dataFim ) + 2 ;
+
+      var nLinhasAdicionadas = 0 ;
+
+      var nCorCelula ;
+
+      var aColunasDias = ['dias'];
+
+      for( var i = 0 ; i < nDiasTabela ; i++)
+      {
+        dataTable.addColumn('number', data.getDate() + "/" + ( mesLiteral(data.getMonth()+1)).substring(0,3)  ) ;
+        aColunasDias.push( data.getDate() + "/" + ( mesLiteral(data.getMonth()+1)).substring(0,3)+"/"+data.getFullYear() ) ;
+        data.setDate( data.getDate() + 1 ) ;
+        nDias++ ;
+      }
+
+      var cDemanda = "" ;
+      var aLinhas = [] ;
+      var aLinha = [] ;
+
+      aTotais = [ "total" ] ;
+
+      for( var k = 0 ; k < nDias ; k++ )
+      {
+        aTotais.push( 0 ) ;
+      }
+
+      for ( var i = 0 ; i < otherData.getNumberOfRows() ; i++ )
+      {
+        if ( otherData.getValue(i,6) != cDemanda )
+        {
+          aLinha.push( otherData.getValue( i , 6) ) ;
+
+          for( var k = 0 ; k < nDias ; k++ )
+          {
+            aLinha.push( 0 ) ;
+          }
+
+          aLinhas.push( aLinha ) ;
+
+          aLinha = [] ;
+
+          cDemanda = otherData.getValue(i,6) ;
+
+          var nPosicao = aLinhas.length-1 ;
+        }
+
+        var nHorasEstimadas = otherData.getValue(i,1) ;
+        var nHorasDia = otherData.getValue(i,2) ;
+        var dataAtividade = otherData.getValue(i,3) ;
+        var nHorasAlocadas = 0 ;
+        var nDiaAno = 0 ;
+
+        for ( nHorasAlocadas = nHorasDia ; nHorasAlocadas <= nHorasEstimadas ; nHorasAlocadas += nHorasDia )
+        {
+
+          if( dataAtividade >= dataInicial && dataAtividade <= dataFim)
+          {
+
+            var nColuna = getColunaDias( aColunasDias, dataAtividade.getDate() + "/" + ( mesLiteral(dataAtividade.getMonth()+1)).substring(0,3)+"/"+dataAtividade.getFullYear()  )
+
+            aLinhas[nPosicao][nColuna] += nHorasDia ;
+
+            aTotais[nColuna] += nHorasDia ;
+          }
+
+          dataAtividade.setDate( dataAtividade.getDate() + 1 ) ;
+
+          if ( dataAtividade.getDay() == 0 || dataAtividade.getDay() == 6 )
+          {
+            dataAtividade.setDate( dataAtividade.getDate() + 1 ) ;
+          }
+
+          if ( dataAtividade.getDay() == 0 || dataAtividade.getDay() == 6 )
+          {
+            dataAtividade.setDate( dataAtividade.getDate() + 1 ) ;
+          }
+        }
+      }
+
+      for( var i = 0 ; i < aLinhas.length ; i++ )
+      {
+
+        dataTable.addRow( aLinhas[i] );
+
+        for( k = 1 ; k <= nDiasTabela ; k++ )
+        {
+
+          nCorCelula = 'celula-neutra';
+
+          dataTable.setCell( nLinhasAdicionadas , k , dataTable.getValue(nLinhasAdicionadas,k) , null , {'className': nCorCelula } );
+        }
+
+        nLinhasAdicionadas++;
+
+      }
+
+      dataTable.addRows( [aTotais] );
+
+      for( k = 1 ; k <= nDias ; k++ )
+      {
+        if( dataTable.getValue(nLinhasAdicionadas,k) > 0 && dataTable.getValue(nLinhasAdicionadas,k) < 8 )
+        {
+          nCorCelula = 'celula-verde';
+        }
+        else if (dataTable.getValue(nLinhasAdicionadas,k) == 8 )
+        {
+           nCorCelula = 'celula-azul';
+        }
+        else if (dataTable.getValue(nLinhasAdicionadas,k) > 8 )
+        {
+           nCorCelula = 'celula-vermelho';
+        }
+        else if (dataTable.getValue(nLinhasAdicionadas,k) == 0 )
+        {
+           nCorCelula = 'celula-cinza';
+        }
+
+       dataTable.setCell( nLinhasAdicionadas , k , dataTable.getValue(nLinhasAdicionadas,k) , null , {'className': nCorCelula } );
+      }
+
+      var options = { frozenColumns: 1,showRowNumber: true,firstRowNumber:2,
+                        timeline: { colorByRowLabel: true },
+                        backgroundColor: '#ffd'
+      };
+
+      var table = new google.visualization.Table(document.getElementById('table1_div'));
+      table.draw(dataTable, options);
+
+    }
+
+    //-------------------------------------
+    function getColunaDias( aDias, cDia )
+    {
+
+      var nPosicaoColuna ;
+
+      for ( var i = 0 ; i < aDias.length ; i++ )
+      {
+
+
+        if( aDias[i] == cDia )
+        {
+          nPosicaoColuna = i;
+        }
+      }
+
+      return nPosicaoColuna;
+
+    }
+
+
+    </script>
+
+  </head>
+
+  <body>
+
+    <div id="header"></div>
+
+    <container>
+
+    <a class="waves-effect waves-light btn-small" onclick="window.history.go(-1)" ><i class="material-icons left">navigate_before</i>voltar</a>
+
+        <div class="row" style="height:500px">
+        <div id="table1_div" style="font-size:16px;font-family: Raleway;letter-spacing: 0.6px;position:relative;overflow-x:auto;padding-top: -10px;
+height:500px;"></div>
+      </div>
+
+    </container>
+
+    <div id="footer"></div>
+
+  </body>
+
+</html>
+

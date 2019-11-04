@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+
+
+    <script type="text/javascript">
+
+    google.charts.load("current", {packages:["timeline"]});
+    google.charts.setOnLoadCallback(drawChart);
+
+    var visualization;
+
+
+    // -------------------------
+    function drawChart()
+    {
+
+      var aEntidade = getPlanilha( "calendario" ) ;
+      var stringquery='SELECT E,G,L,J,K,C WHERE E<>"" AND G > 0 ORDER BY E';
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+      query.setQuery(stringquery);
+      query.send(handleQueryResponse);
+
+    }
+
+    function handleQueryResponse(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+      var otherData = response.getDataTable();
+
+      var dataTable = new google.visualization.DataTable();
+
+      var container = document.getElementById('tabela_recurso');
+      var chart = new google.visualization.Timeline(container);
+      var dataTable = new google.visualization.DataTable();
+      dataTable.addColumn({ type: 'string', id: 'Room' });
+      dataTable.addColumn({ type: 'string', id: 'Name' });
+      dataTable.addColumn({ type: 'date', id: 'Start' });
+      dataTable.addColumn({ type: 'date', id: 'End' });
+
+      for ( var i = 0 ; i < otherData.getNumberOfRows() ; i++ )
+      {
+        dataTable.addRow(
+                            [ otherData.getValue( i , 0),  otherData.getValue( i , 5),    new Date( otherData.getValue( i , 3) ),  new Date( otherData.getValue( i , 4)) ],
+                           );
+      }
+
+      var options = {
+      timeline: { colorByRowLabel: true },
+      backgroundColor: '#ffd'
+    };
+
+    chart.draw(dataTable, options);
+
+    }
+
+    </script>
+
+  </head>
+
+  <body>
+
+    <div id="header"></div>
+
+    <container>
+        <div class="row" style="height:500px">
+        <div id="tabela_recurso" style="font-size:16px;font-family: Raleway;letter-spacing: 0.6px;position:relative;overflow-x:auto;padding-top: -10px;
+height:500px;"></div>      </div>
+
+    </container>
+
+    <div id="footer"></div>
+
+  </body>
+
+</html>
+

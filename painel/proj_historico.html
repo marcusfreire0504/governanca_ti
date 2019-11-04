@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+
+    <script type="text/javascript">
+
+    google.load('visualization', '1', { packages: ['table']});
+
+    var visualization;
+
+    google.setOnLoadCallback(drawQuadro);
+
+    var variaveis = location.search.split("?");
+    var variavel_projeto = variaveis[1].split("=");
+    var id_projeto = variavel_projeto[1];
+
+    function drawQuadro()
+    {
+
+      var aEntidade = getPlanilha( "historico" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      var stringquery='SELECT B,C,D,E,F WHERE B = ' + id_projeto ; // projetos / historico
+
+      query.setQuery(stringquery);
+
+      query.send(handleQueryResponse);
+
+    }
+
+    function handleQueryResponse(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+      var otherData = response.getDataTable();
+
+      var data = new google.visualization.DataTable();
+
+      data.addColumn('number', 'id_projeto');
+      data.addColumn('string', 'nome_projeto');
+      data.addColumn('string', 'data');
+      data.addColumn('string', 'descrição_realizações');
+      data.addColumn('string', 'descrição_próximos_passos');
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+
+        data.addRows([
+                       [otherData.getValue(i, 0),
+                        otherData.getValue(i, 1),
+                        otherData.getValue(i, 2).toLocaleDateString('pt-BR'),
+                        otherData.getValue(i, 3),
+                        otherData.getValue(i, 4)
+                       ]
+                     ]);
+      }
+
+      var table = new google.visualization.Table(document.getElementById('table1_div'));
+      table.draw(data, {showRowNumber: false, allowHtml: true});
+    }
+
+    </script>
+
+  </head>
+
+  <body>
+
+    <div id="header"></div>
+
+    <container>
+      <div class="row" style="min-height:100px;">
+      <div id="table1_div" style="font-size:16px;font-family: Raleway;letter-spacing: 0.6px;"></div>
+      </div>
+    </container>
+
+    <div id="footer"></div>
+
+  </body>
+</html>
+

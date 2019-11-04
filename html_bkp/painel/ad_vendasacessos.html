@@ -1,0 +1,95 @@
+ <head>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+
+    <script type="text/javascript">
+
+      // Carregando a API Visualization e os pacotes de gráficos
+      google.load('visualization', '1.0', {'packages':['corechart']});
+
+      // Configurando o método que será executado quando a API for carregada
+      google.setOnLoadCallback(drawChart);
+
+      // Método onde será criado o DataTable,
+      // configurado e inicializado o gráfico.
+      function drawChart() {
+
+          // Criando o DataTable
+          var data = new google.visualization.DataTable();
+            data.addColumn('string', 'mês');
+            data.addColumn('number', 'vendas_2017');
+            data.addColumn('number', 'vendas_2018');
+            data.addColumn('number', 'acessos_2017');
+            data.addColumn('number', 'acessos_2018');
+
+            data.addRows([
+             ['junho', 79275, 87843,  61014, 61423],
+             ['julho', 79357, 78221,  60532, 55506],
+             ['agosto', 69665, 68736, 53230, 43410]
+          ]);
+
+          //var aCoresGrafico = new Array("#4285f4","#93c47d","#4285f4","#93c47d");
+          var aCoresGrafico = new Array("#4285f4","#93c47d","red","black");
+          var view = new google.visualization.DataView(data);
+          var view = new google.visualization.DataView(data);
+          view.setColumns([0, 1,
+                       { calc: "stringify",
+                         sourceColumn: 1,
+                         type: "string",
+                        role: "annotation" },
+                      2,{ calc: "stringify",
+                         sourceColumn: 2,
+                         type: "string",
+                        role: "annotation" },
+                      3,{ calc: "stringify",
+                         sourceColumn: 3,
+                         type: "string",
+                        role: "annotation"},
+                      4,{ calc: "stringify",
+                         sourceColumn: 4,
+                         type: "string",
+                        role: "annotation"}
+                         ]);
+
+          // Opções de customização
+          var options = {
+            'legend':'right',
+            'title':'Vendas x Acessos',
+            titleTextStyle: { fontSize:26 },
+            'is3D':true,
+            'width':800,
+            'height':600,
+            seriesType: "bars",
+            series: {2: {type: "line"},3: {type: "line"}},
+            colors: aCoresGrafico,
+            bar: {groupWidth: "65%"},
+            //legend: { position: "none" }
+          };
+
+          // Instanciando e desenhando o gráfico, passando algunas opções
+          var chart = new google.visualization.ComboChart(document.getElementById('chart_div'));
+          chart.draw(view, options);
+
+      }
+    </script>
+  </head>
+
+  <body>
+
+    <div id="header"></div>
+
+    <!-- Div onde será criado o gráfico -->
+    <div id="chart_div" style="width:400; height:300"></div>
+
+  </body>
+</html>

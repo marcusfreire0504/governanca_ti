@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+
+    <script type="text/javascript">
+
+    var chartgx;
+    var visualization;
+    var chartEAGeral;
+    var chartEANivel1;
+    var chartEANivel2;
+    var chartAgingGeral;
+    var chartAgingNivel1;
+    var chartAgingNivel2;
+
+    var dataEAGeral;
+    var dataEANivel1
+    var dataEANivel2
+    var viewGeralAgingAbertos;
+    var viewNivel1AgingAbertos;
+    var viewNivel2AgingAbertos;
+
+    google.load('visualization', '1', { packages: ['table','corechart']});
+
+    google.setOnLoadCallback(drawCharts);
+
+    //identificando o tipo de acesso, Share ou Full
+    var url   = window.location.search.replace("?", "");
+    var parametro = url.split("=");
+    var tipo_acesso =  parametro[1] ;
+    var rootElement = document.documentElement;
+    //alert( "teste" + rootElement );
+    //--------------------------------------
+    // acesso à planilha que contém os dados
+    function drawCharts()
+    {
+
+      var aEntidade = getPlanilha( "dados_topesk" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+      var stringquery='SELECT A,G,I,D,J WHERE A<>"" '; // A Nível, G categoria, I status, D data de criação, J data de solução
+      query.setQuery(stringquery);
+      query.send(handleQueryResponseCharts);
+
+    }
+
+    //-------------------------------------------------------
+    // processamento dos registros e construção dos graáficos
+    function handleQueryResponseCharts(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+      var otherData = response.getDataTable();
+      var aRegistros = [] ;
+      var aPendentes = [] ;
+      var aEncerrados = [] ;
+      var aEncerradosMesGeral = [];
+      var aEncerradosMesNivel1 = [];
+      var aEncerradosMesNivel2 = [];
+      var aStatusEncerrados = [];
+      var aStatusPendentes = [];
+      var aAgingEncerrados = [];
+      var aAgingAbertosGeral = [];
+      var aAgingAbertosNivel1 = [];
+      var aAgingAbertosNivel2 = [];
+
+      let aCores  = { "Concluído dentro do prazo":"0000ff",
+                      "Em processamento":"#00ff00",
+                      "Não concluído dentro do prazo, ainda em andamento":"#ff9900",
+                      "Não concluído dentro do prazo":"#ff0000",
+                      "sem sla":"#afb42b",
+                      "Não aplicável":"#000000"
+                    };
+
+      // aloca e estrutura o grágico Em Aberto - Geral
+      dataEAGeral = new google.visualization.DataTable();
+      dataEAGeral.addColumn('string', 'status');
+      dataEAGeral.addColumn('number', 'total');
+      dataEAGeral.addColumn('string', 'link');
+
+      // aloca e estrutura o grágico Em Aberto - Primeiro Nível
+      dataEANivel1 = new google.visualization.DataTable();
+      dataEANivel1.addColumn('string', 'status');
+      dataEANivel1.addColumn('number', 'total');
+      dataEANivel1.addColumn('string', 'link');
+
+      // aloca e estrutura o grágico Em Aberto - Segundo Nível
+      dataEANivel2 = new google.visualization.DataTable();
+      dataEANivel2.addColumn('string', 'status');
+      dataEANivel2.addColumn('number', 'total');
+      dataEANivel2.addColumn('string', 'link');
+
+      // aloca e estrutura o grágico Encerrados - Geral
+      var dataENCGeral = new google.visualization.DataTable();
+      dataENCGeral.addColumn('string', 'status');
+      dataENCGeral.addColumn('number', 'total');
+
+      // aloca e estrutura o grágico Encerrados - Primeiro Nível
+      var dataENCNivel1 = new google.visualization.DataTable();
+      dataENCNivel1.addColumn('string', 'status');
+      dataENCNivel1.addColumn('number', 'total');
+
+      // aloca e estrutura o grágico Encerrados - Segundo Nível
+      var dataENCNivel2 = new google.visualization.DataTable();
+      dataENCNivel2.addColumn('string', 'status');
+      dataENCNivel2.addColumn('number', 'total');
+
+      var aCoresGraficoEAGeral = [] ;
+      var aCoresGraficoEANivel1 = [] ;
+      var aCoresGraficoEANivel2 = [] ;
+      var aCoresGraficoENCGeral = [] ;
+      var aCoresGraficoENCNivel1 = [] ;
+      var aCoresGraficoENCNivel2 = [] ;
+
+      var nTotalPendentesGeral = 0 ;
+      var nTotalPendentesNivel1 = 0 ;
+      var nTotalPendentesNivel2 = 0 ;
+      var nTotalEncerradosGeral = 0 ;
+      var nTotalEncerradosNivel1 = 0 ;
+      var nTotalEncerradosNivel2 = 0 ;
+
+      var aSaldos = [] ;
+
+      var hoje = new Date() ;
+      var cAnoMesCorrente = hoje.getFullYear().toString()+("0" + (hoje.getMonth() + 1)).slice(-2) ;
+      var cAnoMesInicial = getAnoMes( cAnoMesCorrente , -12 ) ;
+      var cMaiorData = new Date('2016-01-01') ;
+      var cAnoMesAbertura = null;
+      var cAnoMesEncerramento = null;
+
+      // popula a array aRegistros com todos os registroso retornados pela query
+      // popula a array aPendentes com os registros em aberto (campo J data de solução == null)
+      for( var i = 0 ; i < otherData.getNumberOfRows() ; i++ )
+      {
+
+        aRegistros.push( [] ) ;
+
+        for ( var k = 0 ; k < otherData.getNumberOfColumns() ; k ++ )
+        {
+          aRegistros[i].push( otherData.getValue(i,k) ) ;
+        }
+
+        // adiciona uma coluna com ano+mês da data de abertura
+        cAnoMesAbertura = otherData.getValue(i,3).getFullYear().toString() + ("0" + (otherData.getValue(i,3).getMonth() + 1)).slice(-2) ;
+        aRegistros[i].push( cAnoMesAbertura );
+
+        // adiciona uma coluna com ano+mes da data de encerramento
+        if( otherData.getValue(i,4) != null )
+        {
+          cAnoMesEncerramento = otherData.getValue(i,4).getFullYear().toString() + ("0" + (otherData.getValue(i,4).getMonth() + 1)).slice(-2) ;
+
+        }
+        else
+        {
+          cAnoMesEncerramento = null;
+        }
+
+        aRegistros[i].push( cAnoMesEncerramento );
+
+        // alimenta a array aPendentes com os registros que possuam data de solução em aberto.
+        if( otherData.getValue(i,4) == null )
+        {
+          aPendentes.push( [] );
+
+          for ( var k = 0 ; k < otherData.getNumberOfColumns() ; k ++ )
+          {
+            aPendentes[aPendentes.length-1].push( otherData.getValue(i,k) ) ;
+          }
+        }
+
+        // se o campo status estiver vazio, assume o status "sem sla" a atualiza os registros nas arrays aPendentes e aRegistros
+        if( otherData.getValue(i,2) == null )
+        {
+          aRegistros[i][2] = "sem sla" ;
+
+          if( otherData.getValue(i,4) == null )
+          {
+            aPendentes[ aPendentes.length-1 ][2] = "sem sla" ;
+          }
+        }
+
+        //alimenta a array aStatusPendentes
+        if( otherData.getValue(i,4) == null && aStatusPendentes.indexOf( aPendentes[ aPendentes.length-1 ][2] ) == -1)
+        {
+          aStatusPendentes.push( aPendentes[ aPendentes.length-1 ][2]) ;
+        }
+
+        // alimenta a array aEncerrados com os registros que possuam data de solução.
+        if( cAnoMesEncerramento != null )
+        {
+
+          aEncerrados.push( [] );
+
+          for ( var k = 0 ; k < otherData.getNumberOfColumns() ; k ++ )
+          {
+            aEncerrados[aEncerrados.length-1].push( otherData.getValue(i,k) ) ;
+          }
+
+          if( otherData.getValue(i,2) == null )
+          {
+            aEncerrados[ aEncerrados.length-1 ][2] = "sem sla" ;
+          }
+
+          aEncerrados[ aEncerrados.length-1 ].push( cAnoMesEncerramento );
+
+          //alimenta a array aStatusEncerrados
+          if( aStatusEncerrados.indexOf( aEncerrados[ aEncerrados.length-1 ][2] ) == -1)
+          {
+            if( cAnoMesEncerramento >= cAnoMesInicial )
+            {
+              aStatusEncerrados.push( aEncerrados[ aEncerrados.length-1 ][2] ) ;
+            }
+          }
+        }
+
+        // identifica qual a maior data de abertura de chamado
+        if( otherData.getValue(i,4) > cMaiorData )
+        {
+          cMaiorData = otherData.getValue(i,4) ;
+        }
+
+      }
+
+      // gráficos chamados que estão abertos, agrupados de acordo com o status
+      var nPosicao  = null ;
+
+      for ( var i = 0 ; i < aPendentes.length ; i++ )
+      {
+
+        // em aberto geral
+        nPosicao = null ;
+
+        for ( var k = 0 ; k < dataEAGeral.getNumberOfRows() ; k++ )
+        {
+          if( dataEAGeral.getValue(k,0) == aPendentes[i][2] )
+          {
+            nPosicao = k;
+            dataEAGeral.setCell(k, 1, dataEAGeral.getValue(k,1)+1,null);
+          }
+        }
+
+        if( nPosicao == null )
+        {
+          dataEAGeral.addRow( [ aPendentes[i][2] , 1 ,"?tipo_grafico=em_aberto&id_nivel=geral"+"&"+"id_status="+aPendentes[i][2]] );
+          aCoresGraficoEAGeral.push( aCores[aPendentes[i][2]]);
+        }
+
+        nTotalPendentesGeral++;
+
+        //----------------------------
+        // em aberto do primeiro nível
+        nPosicao = null ;
+        if( aPendentes[i][0] == "'Pedido' de 1º nível")
+        {
+
+          for ( var k = 0 ; k < dataEANivel1.getNumberOfRows() ; k++ )
+          {
+            if( dataEANivel1.getValue(k,0) == aPendentes[i][2] )
+            {
+              nPosicao = k;
+              dataEANivel1.setCell(k, 1, dataEANivel1.getValue(k,1)+1,null);
+            }
+          }
+
+          if( nPosicao == null )
+          {
+            dataEANivel1.addRow( [aPendentes[i][2] , 1 ,"?tipo_grafico=em_aberto&id_nivel=nivel1"+"&"+"id_status="+aPendentes[i][2]] );
+            aCoresGraficoEANivel1.push( aCores[aPendentes[i][2]]);
+          }
+          nTotalPendentesNivel1++;
+        }
+
+        //----------------------------
+        // em aberto do segundo nível
+        nPosicao = null ;
+
+        if( aPendentes[i][0] == "'Pedido' de 2º nível")
+        {
+
+          for ( var k = 0 ; k < dataEANivel2.getNumberOfRows() ; k++ )
+          {
+            if( dataEANivel2.getValue(k,0) == aPendentes[i][2] )
+            {
+              nPosicao = k;
+              dataEANivel2.setCell(k, 1, dataEANivel2.getValue(k,1)+1,null);
+            }
+          }
+
+          if( nPosicao == null )
+          {
+            dataEANivel2.addRow( [ aPendentes[i][2] , 1,"?tipo_grafico=em_aberto&id_nivel=nivel2"+"&"+"id_status="+aPendentes[i][2] ] );
+            aCoresGraficoEANivel2.push( aCores[aPendentes[i][2]]);
+          }
+
+          nTotalPendentesNivel2++;
+
+        }
+
+      }
+
+      // incluindo os totais nos labels dos gráficos de "em abertos"
+      for ( var k = 0 ; k < dataEAGeral.getNumberOfRows() ; k++ )
+      {
+        dataEAGeral.setCell(k, 0, dataEAGeral.getValue(k,1) + " " + dataEAGeral.getValue(k,0),null);
+      }
+
+      for ( var k = 0 ; k < dataEANivel1.getNumberOfRows() ; k++ )
+      {
+        dataEANivel1.setCell(k, 0, dataEANivel1.getValue(k,1) + " " + dataEANivel1.getValue(k,0),null);
+      }
+
+      for ( var k = 0 ; k < dataEANivel2.getNumberOfRows() ; k++ )
+      {
+        dataEANivel2.setCell(k, 0, dataEANivel2.getValue(k,1) + " " + dataEANivel2.getValue(k,0),null);
+      }
+
+      var options = {
+                        titleTextStyle: { fontSize:16 },
+                        pieHole: 0.4,
+                        width: 600,
+                        height: 600,
+                        bar: {groupWidth: "95%"},
+                        legend: { position: "right",textStyle: {fontSize: 12},alignment: 'center',maxLines: 2 },
+                        pieSliceTextStyle: { color: 'white',fontSize: 14 },
+                        sliceVisibilityThreshold: 0,
+                        chartArea:{left:0}
+                       };
+
+
+      // exibe os três primeiros gráficos
+      options['title'] = 'Em aberto - Geral (' + nTotalPendentesGeral + ')' ;
+      options['colors'] = aCoresGraficoEAGeral ;
+      chartEAGeral = new google.visualization.PieChart(document.getElementById('div_chamados_pendentes_geral'));
+      google.visualization.events.addListener(chartEAGeral, 'select', selectHandlerEAGeral);
+      chartEAGeral.draw(dataEAGeral, options);
+
+      options['title'] = 'Em aberto - 1o Nível (' + nTotalPendentesNivel1 + ')' ;
+      options['colors'] = aCoresGraficoEANivel1 ;
+      chartEANivel1 = new google.visualization.PieChart(document.getElementById('div_chamados_pendentes_nivel1'));
+      google.visualization.events.addListener(chartEANivel1, 'select', selectHandlerEANivel1);
+      chartEANivel1.draw(dataEANivel1, options);
+
+      options['title'] = 'Em aberto - 2o Nível (' + nTotalPendentesNivel2 + ')' ;
+      options['colors'] = aCoresGraficoEANivel2 ;
+      //var chartgx = new google.visualization.PieChart(document.getElementById( 'div_chamados_pendentes_nivel2' ) );
+      //chartgx.draw(dataEANivel2 , options);
+      chartEANivel2 = new google.visualization.PieChart(document.getElementById('div_chamados_pendentes_nivel2'));
+      google.visualization.events.addListener(chartEANivel2, 'select', selectHandlerEANivel2);
+      chartEANivel2.draw(dataEANivel2, options);
+
+      // gráficos chamados encerrados no mês corrente
+      var nPosicao  = null ;
+
+      for ( var i = 0 ; i < aEncerrados.length ; i++ )
+      {
+
+        if( aEncerrados[i][5] == cAnoMesCorrente )
+        {
+
+          // em aberto geral
+          nPosicao = null ;
+
+          for ( var k = 0 ; k < dataENCGeral.getNumberOfRows() ; k++ )
+          {
+            if( dataENCGeral.getValue(k,0) == aEncerrados[i][2] )
+            {
+              nPosicao = k;
+              dataENCGeral.setCell(k, 1, dataENCGeral.getValue(k,1)+1,null);
+            }
+          }
+
+          if( nPosicao == null )
+          {
+            dataENCGeral.addRow( [ aEncerrados[i][2] , 1 ] );
+            aCoresGraficoENCGeral.push( aCores[aEncerrados[i][2]]);
+          }
+
+          nTotalEncerradosGeral++;
+
+
+          // encerrados do primeiro nível
+          nPosicao = null ;
+          if( aEncerrados[i][0] == "'Pedido' de 1º nível")
+          {
+
+            for ( var k = 0 ; k < dataENCNivel1.getNumberOfRows() ; k++ )
+            {
+              if( dataENCNivel1.getValue(k,0) == aEncerrados[i][2] )
+              {
+                nPosicao = k;
+                dataENCNivel1.setCell(k, 1, dataENCNivel1.getValue(k,1)+1,null);
+              }
+            }
+
+            if( nPosicao == null )
+            {
+              dataENCNivel1.addRow( [ aEncerrados[i][2] , 1 ] );
+              aCoresGraficoENCNivel1.push( aCores[aEncerrados[i][2]]);
+            }
+            nTotalEncerradosNivel1++;
+          }
+
+          // encerrados do segundo nível
+          nPosicao = null ;
+          if( aEncerrados[i][0] == "'Pedido' de 2º nível")
+          {
+
+            for ( var k = 0 ; k < dataENCNivel2.getNumberOfRows() ; k++ )
+            {
+              if( dataENCNivel2.getValue(k,0) == aEncerrados[i][2] )
+              {
+                nPosicao = k;
+                dataENCNivel2.setCell(k, 1, dataENCNivel2.getValue(k,1)+1,null);
+              }
+            }
+
+            if( nPosicao == null )
+            {
+              dataENCNivel2.addRow( [ aEncerrados[i][2] , 1 ] );
+              aCoresGraficoENCNivel2.push( aCores[aEncerrados[i][2]]);
+            }
+            nTotalEncerradosNivel2++;
+          }
+        }
+
+      }
+
+      var options = {
+                        titleTextStyle: { fontSize:16 },
+                        pieHole: 0.4,
+                        width: 600,
+                        height: 600,
+                        bar: {groupWidth: "95%"},
+                        legend: { position: "right",textStyle: {fontSize: 12},alignment: 'center',maxLines: 2 },
+                        pieSliceTextStyle: { color: 'white',fontSize: 14 },
+                        sliceVisibilityThreshold: 0,
+                        chartArea:{left:0}
+                       };
+
+      // incluindo os totais nos labels dos gráficos de "encerrados"
+      for ( var k = 0 ; k < dataENCGeral.getNumberOfRows() ; k++ )
+      {
+        dataENCGeral.setCell(k, 0, dataENCGeral.getValue(k,1) + " " + dataENCGeral.getValue(k,0),null);
+      }
+
+      for ( var k = 0 ; k < dataENCNivel1.getNumberOfRows() ; k++ )
+      {
+        dataENCNivel1.setCell(k, 0, dataENCNivel1.getValue(k,1) + " " + dataENCNivel1.getValue(k,0),null);
+      }
+
+      for ( var k = 0 ; k < dataENCNivel2.getNumberOfRows() ; k++ )
+      {
+        dataENCNivel2.setCell(k, 0, dataENCNivel2.getValue(k,1) + " " + dataENCNivel2.getValue(k,0),null);
+      }
+
+
+      // exibe os gráficos Encerrados no mês
+      options['title'] = 'Encerrados - Geral (' + nTotalEncerradosGeral + ')' ;
+      options['colors'] = aCoresGraficoENCGeral ;
+      var chartgx = new google.visualization.PieChart(document.getElementById( 'div_chamados_encerrados_geral' ) );
+      chartgx.draw( dataENCGeral , options) ;
+
+      options['title'] = 'Encerrados - 1o Nível (' + nTotalEncerradosNivel1 + ')' ;
+      options['colors'] = aCoresGraficoENCNivel1 ;
+      var chartgx = new google.visualization.PieChart(document.getElementById( 'div_chamados_encerrados_nivel1' ) );
+      chartgx.draw( dataENCNivel1 , options) ;
+
+      options['title'] = 'Encerrados - 2o Nível (' + nTotalEncerradosNivel2 + ')' ;
+      options['colors'] = aCoresGraficoENCNivel2 ;
+      var chartgx = new google.visualization.PieChart(document.getElementById( 'div_chamados_encerrados_nivel2' ) );
+      chartgx.draw( dataENCNivel2 , options) ;
+
+      // graficos de saldo + abertos e encerrados
+      // apura os totais de chamados abertos e encerrados em cada mês e alimenta a array aSaldos.
+      var nPosicao = null ;
+      var nPosicaoNivel = null ;
+
+      aSaldos.push( [ "geral",[] ] ) ;
+      aSaldos.push( [ "'Pedido' de 1º nível",[] ] ) ;
+      aSaldos.push( [ "'Pedido' de 2º nível",[] ] ) ;
+
+      for ( var i = 0 ; i < aRegistros.length ; i++ )
+      {
+
+        nPosicaoNivel = null;
+        nPosicaoNivel = getPosicaoElemento( aSaldos , aRegistros[i][0] ) ;
+        if( nPosicaoNivel == null )
+        {
+          aSaldos.push( [ aRegistros[i][0] ,[] ] ) ;
+          nPosicaoNivel = ( aSaldos.length-1 ) ;
+        }
+
+        nPosicao = null ;
+        nPosicao = getPosicaoElemento( aSaldos[nPosicaoNivel][1] , aRegistros[i][5] ) ;
+
+        if( nPosicao == null )
+        {
+          aSaldos[nPosicaoNivel][1].push( [ aRegistros[i][5] , 0 , 0 ] ) ;
+          nPosicao = ( aSaldos[nPosicaoNivel][1].length-1 ) ;
+        }
+
+        aSaldos[nPosicaoNivel][1][nPosicao][1]++;
+
+        // popula também a array referente ao Geral
+        nPosicao = null ;
+        nPosicao = getPosicaoElemento( aSaldos[0][1] , aRegistros[i][5] ) ;
+
+        if( nPosicao == null )
+        {
+          aSaldos[0][1].push( [ aRegistros[i][5] , 0 , 0 ] ) ;
+          nPosicao = ( aSaldos[0][1].length-1 ) ;
+        }
+
+        aSaldos[0][1][nPosicao][1]++;
+
+        //contabiliza os encerrados
+        if( aRegistros[i][4] != null )
+        {
+          nPosicao = null ;
+          nPosicao = getPosicaoElemento( aSaldos[nPosicaoNivel][1] , aRegistros[i][6] ) ;
+
+          if ( nPosicao == null)
+          {
+            aSaldos[nPosicaoNivel][1].push( [ aRegistros[i][6] , 0 , 0 ] ) ;
+            nPosicao = ( aSaldos[nPosicaoNivel][1].length-1 ) ;
+          }
+
+          aSaldos[nPosicaoNivel][1][nPosicao][2]++;
+
+          // popula também a array referente ao Geral
+          nPosicao = null ;
+          nPosicao = getPosicaoElemento( aSaldos[0][1] , aRegistros[i][6] ) ;
+
+          if ( nPosicao == null)
+          {
+            aSaldos[0][1].push( [ aRegistros[i][6] , 0 , 0 ] ) ;
+            nPosicao = ( aSaldos[0][1].length-1 ) ;
+          }
+          aSaldos[0][1][nPosicao][2]++;
+
+        }
+
+      }
+
+      nPosicaoNivel = 0 ;
+
+      // ordena as arrays dos níveis em aSaldos
+      for( var i = 0 ; i < aSaldos.length ; i++ )
+      {
+        aSaldos[i][1].sort(function(a, b) {
+        return a[0] > b[0] ? 1 : -1;
+        });
+      }
+
+      var nSaldo = 0
+
+      for( var k = 0 ; k < aSaldos.length ; k++ )
+      {
+        nSaldo = 0 ;
+
+        for( var i = 0 ; i < aSaldos[k][1].length ; i++ )
+        {
+          if( aSaldos[k][1][i][0] < cAnoMesInicial )
+          {
+            nSaldo = nSaldo + aSaldos[k][1][i][1] - aSaldos[k][1][i][2];
+          }
+        }
+
+        aSaldos[k].push(nSaldo);
+      }
+
+      var aCoresGrafico = new Array("#4285f4","#93c47d","red","black");
+
+      var options = {
+                      annotations: {textStyle: {fontSize: 10}},
+                      'legend':'bottom',
+                      titleTextStyle: { fontSize:16 },
+                      'is3D':true,
+                      'width':600,
+                      'height':600,
+                      seriesType: "bars",
+                      series: {2: {type: "line"},3: {type: "line"}},
+                      colors: aCoresGrafico,
+                      bar: {groupWidth: "75%"},
+                      vAxis: {  gridlines: {   color: 'transparent' },
+                                textPosition:'none',
+                                slantedText:true ,
+                                slantedTextAngle:90 },
+                      chartArea:{left:0},
+                      hAxis:  {
+                                slantedText:true,
+                                slantedTextAngle:75
+                              },
+                    };
+
+      var dataSaldosGeral = new google.visualization.DataTable();
+      dataSaldosGeral.addColumn('string', 'mês') ;
+      dataSaldosGeral.addColumn('number', 'abertos') ;
+      dataSaldosGeral.addColumn('number', 'encerrados') ;
+      dataSaldosGeral.addColumn('number', 'saldo' ) ;
+
+      var dataSaldosN1 = new google.visualization.DataTable();
+      dataSaldosN1.addColumn('string', 'mês') ;
+      dataSaldosN1.addColumn('number', 'abertos') ;
+      dataSaldosN1.addColumn('number', 'encerrados') ;
+      dataSaldosN1.addColumn('number', 'saldo' ) ;
+
+      var dataSaldosN2 = new google.visualization.DataTable();
+      dataSaldosN2.addColumn('string', 'mês') ;
+      dataSaldosN2.addColumn('number', 'abertos') ;
+      dataSaldosN2.addColumn('number', 'encerrados') ;
+      dataSaldosN2.addColumn('number', 'saldo' ) ;
+
+      for( var k = 0 ; k < aSaldos.length ; k++ )
+      {
+        nSaldo = aSaldos[k][2];
+
+        for( var i = 0 ; i < aSaldos[k][1].length ; i++ )
+        {
+
+          if( aSaldos[k][1][i][0] >= cAnoMesInicial )
+          {
+            nSaldo = nSaldo + aSaldos[k][1][i][1] - aSaldos[k][1][i][2];
+
+            if( aSaldos[k][0] == "geral" )
+            {
+              dataSaldosGeral.addRow( [ (mesLiteral( aSaldos[k][1][i][0].substring(4, 6)).substring(0, 3) + "/" + aSaldos[k][1][i][0].substring(0, 4).substring(2, 4) ) , aSaldos[k][1][i][1] , aSaldos[k][1][i][2] , nSaldo] );
+            }
+            else if( aSaldos[k][0] == "'Pedido' de 1º nível" )
+            {
+              dataSaldosN1.addRow( [ (mesLiteral( aSaldos[k][1][i][0].substring(4, 6)).substring(0, 3) + "/" + aSaldos[k][1][i][0].substring(0, 4).substring(2, 4) ) , aSaldos[k][1][i][1] , aSaldos[k][1][i][2] , nSaldo] );
+            }
+            else if( aSaldos[k][0] == "'Pedido' de 2º nível" )
+            {
+              dataSaldosN2.addRow( [ (mesLiteral( aSaldos[k][1][i][0].substring(4, 6)).substring(0, 3) + "/" + aSaldos[k][1][i][0].substring(0, 4).substring(2, 4) ) , aSaldos[k][1][i][1] , aSaldos[k][1][i][2] , nSaldo] );
+            }
+          }
+        }
+      }
+
+      var viewSaldosGeral = new google.visualization.DataView(dataSaldosGeral);
+      var viewSaldosN1 = new google.visualization.DataView(dataSaldosN1);
+      var viewSaldosN2 = new google.visualization.DataView(dataSaldosN2);
+
+      viewSaldosGeral.setColumns([0, 1,
+                       { calc: "stringify",
+                         sourceColumn: 1,
+                         type: "string",
+                        role: "annotation" },
+                      2,{ calc: "stringify",
+                         sourceColumn: 2,
+                         type: "string",
+                        role: "annotation" },
+                      3,{ calc: "stringify",
+                         sourceColumn: 3,
+                         type: "string",
+                        role: "annotation"},
+                         ]);
+
+      viewSaldosN1.setColumns([0, 1,
+                       { calc: "stringify",
+                         sourceColumn: 1,
+                         type: "string",
+                        role: "annotation" },
+                      2,{ calc: "stringify",
+                         sourceColumn: 2,
+                         type: "string",
+                        role: "annotation" },
+                      3,{ calc: "stringify",
+                         sourceColumn: 3,
+                         type: "string",
+                        role: "annotation"},
+                         ]);
+
+      viewSaldosN2.setColumns([0, 1,
+                       { calc: "stringify",
+                         sourceColumn: 1,
+                         type: "string",
+                        role: "annotation" },
+                      2,{ calc: "stringify",
+                         sourceColumn: 2,
+                         type: "string",
+                        role: "annotation" },
+                      3,{ calc: "stringify",
+                         sourceColumn: 3,
+                         type: "string",
+                        role: "annotation"},
+                         ]);
+
+      options['title'] = 'Estoque de Chamados - ' + aSaldos[0][0] ;
+      options['subtitle'] ="Contém chamados abertos em : " + cMaiorData.toLocaleDateString('pt-Br') ;
+      var chart = new google.visualization.ComboChart(document.getElementById('div_Saldos_Geral'));
+      chart.draw(viewSaldosGeral, options);
+
+      options['title'] = 'Estoque de Chamados - ' + aSaldos[1][0] ;
+      var chart = new google.visualization.ComboChart(document.getElementById('div_Saldos_N1'));
+      chart.draw(viewSaldosN1, options);
+
+      options['title'] = 'Estoque de Chamados - ' + aSaldos[2][0] ;
+      var chart = new google.visualization.ComboChart(document.getElementById('div_Saldos_N2'));
+      chart.draw(viewSaldosN2, options);
+
+      document.getElementById('div_título').innerHTML = "Contém chamados abertos em : " + cMaiorData.toLocaleDateString('pt-Br') ;
+
+      // gráficos de chamados fechados - evolução mensal
+
+      // criação dos 3 DataTables
+      var dataEncMesGeral = new google.visualization.DataTable();
+      dataEncMesGeral.addColumn('string', 'mês/ano');
+
+      var dataEncMesNivel1 = new google.visualization.DataTable();
+      dataEncMesNivel1.addColumn('string', 'mês/ano');
+
+      var dataEncMesNivel2 = new google.visualization.DataTable();
+      dataEncMesNivel2.addColumn('string', 'mês/ano');
+
+      // adiciona as colunas aos 3 DataTables
+      for( var k = 0 ; k < aStatusEncerrados.length ; k++)
+      {
+        dataEncMesGeral.addColumn('number', aStatusEncerrados[k]);
+        dataEncMesNivel1.addColumn('number', aStatusEncerrados[k]);
+        dataEncMesNivel2.addColumn('number', aStatusEncerrados[k]);
+      }
+
+      var nPosicao  = null ;
+      var nPosicaoStatus = null;
+
+      aCoresGrafico = [];
+
+      for( var k = 0 ; k < aStatusEncerrados.length ; k ++ )
+      {
+        aCoresGrafico.push( aCores[ aStatusEncerrados[k] ] ) ;
+      }
+
+      for ( var i = 0 ; i < aEncerrados.length ; i++ )
+      {
+        if( aEncerrados[i][5] >= cAnoMesInicial )
+        {
+          nPosicao =  getPosicaoElemento( aEncerradosMesGeral , aEncerrados[i][5] ) ;
+
+          if( nPosicao == null )
+          {
+            aEncerradosMesGeral.push( [ aEncerrados[i][5] , [] ] ) ;
+
+            nPosicao = aEncerradosMesGeral.length-1;
+
+            for( var k = 0 ; k < aStatusEncerrados.length ; k ++ )
+            {
+              aEncerradosMesGeral[ nPosicao][1].push( [ aStatusEncerrados[k] , 0 ]) ;
+            }
+
+          }
+
+          nPosicaoStatus =  getPosicaoElemento( aEncerradosMesGeral[nPosicao][1] , aEncerrados[i][2] ) ;
+
+          aEncerradosMesGeral[nPosicao][1][nPosicaoStatus][1]++;
+
+          if( aEncerrados[i][0] == "'Pedido' de 1º nível")
+          {
+            nPosicao =  getPosicaoElemento( aEncerradosMesNivel1 , aEncerrados[i][5] ) ;
+
+            if( nPosicao == null )
+            {
+              aEncerradosMesNivel1.push( [ aEncerrados[i][5] , [] ] ) ;
+
+              nPosicao = aEncerradosMesNivel1.length-1;
+
+              for( var k = 0 ; k < aStatusEncerrados.length ; k ++ )
+              {
+                aEncerradosMesNivel1[ nPosicao][1].push( [ aStatusEncerrados[k] , 0 ]) ;
+              }
+
+            }
+
+            nPosicaoStatus =  getPosicaoElemento( aEncerradosMesNivel1[nPosicao][1] , aEncerrados[i][2] ) ;
+
+            aEncerradosMesNivel1[nPosicao][1][nPosicaoStatus][1]++;
+
+          }
+
+          //---
+          if( aEncerrados[i][0] == "'Pedido' de 2º nível")
+          {
+            nPosicao =  getPosicaoElemento( aEncerradosMesNivel2 , aEncerrados[i][5] ) ;
+
+            if( nPosicao == null )
+            {
+              aEncerradosMesNivel2.push( [ aEncerrados[i][5] , [] ] ) ;
+
+              nPosicao = aEncerradosMesNivel2.length-1;
+
+              for( var k = 0 ; k < aStatusEncerrados.length ; k ++ )
+              {
+                aEncerradosMesNivel2[ nPosicao][1].push( [ aStatusEncerrados[k] , 0 ]) ;
+              }
+
+            }
+
+            nPosicaoStatus =  getPosicaoElemento( aEncerradosMesNivel2[nPosicao][1] , aEncerrados[i][2] ) ;
+
+            aEncerradosMesNivel2[nPosicao][1][nPosicaoStatus][1]++;
+
+          }
+          //--
+
+        }
+      }
+
+      //ordena as arrays dos níveis em aEncerradosMesGeral
+      for( var i = 0 ; i < aEncerradosMesGeral.length ; i++ )
+      {
+        aEncerradosMesGeral.sort(function(a, b) {
+        return a[0] > b[0] ? 1 : -1;
+        });
+      }
+
+      //ordena as arrays dos níveis em aEncerradosMesNivel1
+      for( var i = 0 ; i < aEncerradosMesNivel1.length ; i++ )
+      {
+        aEncerradosMesNivel1.sort(function(a, b) {
+        return a[0] > b[0] ? 1 : -1;
+        });
+      }
+
+      //ordena as arrays dos níveis em aEncerradosMesNivel2
+      for( var i = 0 ; i < aEncerradosMesNivel2.length ; i++ )
+      {
+        aEncerradosMesNivel2.sort(function(a, b) {
+        return a[0] > b[0] ? 1 : -1;
+        });
+      }
+
+      // adiciona as linhas ao DataTable dataEncMesGeral
+      var aValoresStatusMes = [] ;
+
+      for ( var i = 0 ; i < aEncerradosMesGeral.length ; i++ )
+      {
+          aValoresStatusMes = [ aEncerradosMesGeral[i][0] ] ;
+
+          for( var k = 0 ; k < aEncerradosMesGeral[i][1].length ; k++)
+          {
+            aValoresStatusMes.push( aEncerradosMesGeral[i][1][k][1] );
+          }
+
+          dataEncMesGeral.addRows( [
+                                     aValoresStatusMes
+                                   ]
+                                 );
+
+      }
+
+      // adiciona as linhas ao DataTable dataEncMesNivel1
+      var aValoresStatusMes = [] ;
+
+      for ( var i = 0 ; i < aEncerradosMesNivel1.length ; i++ )
+      {
+          aValoresStatusMes = [ aEncerradosMesNivel1[i][0] ] ;
+
+          for( var k = 0 ; k < aEncerradosMesNivel1[i][1].length ; k++)
+          {
+            aValoresStatusMes.push( aEncerradosMesNivel1[i][1][k][1] );
+          }
+
+          dataEncMesNivel1.addRows( [
+                                     aValoresStatusMes
+                                   ]
+                                 );
+
+      }
+
+      // adiciona as linhas ao DataTable dataEncMesNivel2
+      var aValoresStatusMes = [] ;
+
+      for ( var i = 0 ; i < aEncerradosMesNivel2.length ; i++ )
+      {
+          aValoresStatusMes = [ aEncerradosMesNivel2[i][0] ] ;
+
+          for( var k = 0 ; k < aEncerradosMesNivel2[i][1].length ; k++)
+          {
+            aValoresStatusMes.push( aEncerradosMesNivel2[i][1][k][1] );
+          }
+
+          dataEncMesNivel2.addRows( [
+                                     aValoresStatusMes
+                                   ]
+                                 );
+
+      }
+
+      for( var k = 0 ; k < dataEncMesGeral.getNumberOfRows() ; k++ )
+      {
+          for( var y = 0 ; y < dataEncMesGeral.getNumberOfColumns() ; y++ )
+          {
+            if( dataEncMesGeral.getValue(k,y) == 0 )
+            {
+              dataEncMesGeral.setCell(k,y,null,null);
+            }
+          }
+      }
+
+      for( var k = 0 ; k < dataEncMesNivel1.getNumberOfRows() ; k++ )
+      {
+          for( var y = 0 ; y < dataEncMesNivel1.getNumberOfColumns() ; y++ )
+          {
+            if( dataEncMesNivel1.getValue(k,y) == 0 )
+            {
+              dataEncMesNivel1.setCell(k,y,null,null);
+            }
+          }
+      }
+
+      for( var k = 0 ; k < dataEncMesNivel2.getNumberOfRows() ; k++ )
+      {
+          for( var y = 0 ; y < dataEncMesNivel2.getNumberOfColumns() ; y++ )
+          {
+            if( dataEncMesNivel2.getValue(k,y) == 0 )
+            {
+              dataEncMesNivel2.setCell(k,y,null,null);
+            }
+          }
+      }
+
+
+      var viewGeralMesEncerrados = new google.visualization.DataView(dataEncMesGeral);
+      var viewNivel1MesEncerrados = new google.visualization.DataView(dataEncMesNivel1);
+      var viewNivel2MesEncerrados = new google.visualization.DataView(dataEncMesNivel2);
+
+      viewGeralMesEncerrados.setColumns([0, 1,
+                       { calc: "stringify",
+                         sourceColumn: 1,
+                         type: "string",
+                        role: "annotation" },
+                      2,{ calc: "stringify",
+                         sourceColumn: 2,
+                         type: "string",
+                        role: "annotation" },
+                      3,{ calc: "stringify",
+                         sourceColumn: 3,
+                         type: "string",
+                        role: "annotation"}
+                         ]);
+     viewNivel1MesEncerrados.setColumns([0, 1,
+                       { calc: "stringify",
+                         sourceColumn: 1,
+                         type: "string",
+                        role: "annotation" },
+                      2,{ calc: "stringify",
+                         sourceColumn: 2,
+                         type: "string",
+                        role: "annotation" },
+                      3,{ calc: "stringify",
+                         sourceColumn: 3,
+                         type: "string",
+                        role: "annotation"}
+                         ]);
+      viewNivel2MesEncerrados.setColumns([0, 1,
+                       { calc: "stringify",
+                         sourceColumn: 1,
+                         type: "string",
+                        role: "annotation" },
+                      2,{ calc: "stringify",
+                         sourceColumn: 2,
+                         type: "string",
+                        role: "annotation" },
+                      3,{ calc: "stringify",
+                         sourceColumn: 3,
+                         type: "string",
+                        role: "annotation"}
+                         ]);
+
+      var options = {
+                      annotations: {textStyle: {fontSize: 10}},
+                      'legend':'bottom',
+                      titleTextStyle: { fontSize:16 },
+                      'is3D':true,
+                      'width':600,
+                      'height':600,
+                      legend: { position: 'bottom', maxLines: 3 },
+                      bar: { groupWidth: '75%' },
+                      isStacked: true,
+                      hAxis:  {
+                                slantedText:true,
+                                slantedTextAngle:75
+                              },
+                      vAxis: {  gridlines: {   color: 'transparent' },
+                                textPosition:'none',
+                                slantedText:true ,
+                                slantedTextAngle:90 ,
+                                minValue:1,
+                                viewWindow: { min: 1},
+                                viewWindowMode: "explicit"},
+                                chartArea:{left:0},
+                    };
+
+      options['colors'] = aCoresGrafico ;
+      options['title'] = 'Evolução Mensal dos Encerrados - Geral' ;
+      var chart = new google.visualization.ColumnChart(document.getElementById('div_encerrados_mensal_geral'));
+      chart.draw(viewGeralMesEncerrados, options);
+
+      options['colors'] = aCoresGrafico ;
+      options['title'] = 'Evolução Mensal dos Encerrados - 1o Nível' ;
+      var chart = new google.visualization.ColumnChart(document.getElementById('div_encerrados_mensal_nivel1'));
+      chart.draw(viewNivel1MesEncerrados, options);
+
+      options['colors'] = aCoresGrafico ;
+      options['title'] = 'Evolução Mensal dos Encerrados - 2o Nível' ;
+      var chart = new google.visualization.ColumnChart(document.getElementById('div_encerrados_mensal_nivel2'));
+      chart.draw(viewNivel2MesEncerrados, options);
+
+      // gráficos de aging dos chamados em aberto
+
+      aAgingAbertosGeral.push ( [ ' até 7            ' , [] ] ) ;
+      aAgingAbertosGeral.push ( [ ' de 8 a 15 dias   ' , [] ] ) ;
+      aAgingAbertosGeral.push ( [ ' de 16 a 30 dias  ' , [] ] ) ;
+      aAgingAbertosGeral.push ( [ ' acima de 30 dias ' , [] ] ) ;
+
+      aAgingAbertosNivel1.push ( [ ' até 7            ' , [] ] ) ;
+      aAgingAbertosNivel1.push ( [ ' de 8 a 15 dias   ' , [] ] ) ;
+      aAgingAbertosNivel1.push ( [ ' de 16 a 30 dias  ' , [] ] ) ;
+      aAgingAbertosNivel1.push ( [ ' acima de 30 dias ' , [] ] ) ;
+
+      aAgingAbertosNivel2.push ( [ ' até 7            ' , [] ] ) ;
+      aAgingAbertosNivel2.push ( [ ' de 8 a 15 dias   ' , [] ] ) ;
+      aAgingAbertosNivel2.push ( [ ' de 16 a 30 dias  ' , [] ] ) ;
+      aAgingAbertosNivel2.push ( [ ' acima de 30 dias ' , [] ] ) ;
+
+      for( var k = 0 ; k < aAgingAbertosGeral.length ; k++)
+      {
+        for( var y = 0 ; y < aStatusPendentes.length ; y++ )
+        {
+          aAgingAbertosGeral[k][1].push( [ aStatusPendentes[y] , 0 ] );
+          aAgingAbertosNivel1[k][1].push( [ aStatusPendentes[y] , 0 ] );
+          aAgingAbertosNivel2[k][1].push( [ aStatusPendentes[y] , 0 ] );
+        }
+      }
+
+      var nDiasAging = 0 ;
+      var nPosicao = null;
+
+      for( var i = 0 ; i < aPendentes.length ; i++ )
+      {
+        nDiasAging = diasCorridos( aPendentes[i][3] , hoje ) ;
+
+        if( nDiasAging <= 7 )
+        {
+          nPosicao = 0 ;
+        }
+        else if( nDiasAging <= 15 )
+        {
+          nPosicao = 1 ;
+        }
+        else if( nDiasAging <= 30 )
+        {
+          nPosicao = 2 ;
+        }
+        else if( nDiasAging > 30 )
+        {
+          nPosicao = 3 ;
+        }
+
+        var nPosicaoStatus =  getPosicaoElemento( aAgingAbertosGeral[nPosicao][1] , aPendentes[i][2] ) ;
+
+        aAgingAbertosGeral[nPosicao][1][nPosicaoStatus][1]++;
+
+        if( aPendentes[i][0] == "'Pedido' de 1º nível")
+        {
+          var nPosicaoStatus =  getPosicaoElemento( aAgingAbertosNivel1[nPosicao][1] , aPendentes[i][2] ) ;
+
+          aAgingAbertosNivel1[nPosicao][1][nPosicaoStatus][1]++;
+        }
+        else if (aPendentes[i][0] == "'Pedido' de 2º nível")
+        {
+          var nPosicaoStatus =  getPosicaoElemento( aAgingAbertosNivel2[nPosicao][1] , aPendentes[i][2] ) ;
+
+          aAgingAbertosNivel2[nPosicao][1][nPosicaoStatus][1]++;
+        }
+
+      }
+
+      // criação dos 3 DataTables de aging chamados em aberto
+      var dataAgingAbertosGeral = new google.visualization.DataTable();
+      dataAgingAbertosGeral.addColumn('string', 'aging');
+
+      var dataAgingAbertosNivel1 = new google.visualization.DataTable();
+      dataAgingAbertosNivel1.addColumn('string', 'aging');
+
+      var dataAgingAbertosNivel2 = new google.visualization.DataTable();
+      dataAgingAbertosNivel2.addColumn('string', 'aging');
+
+      // adicionando 1 coluna para cada status
+      aCoresGrafico = [] ;
+      for( var k = 0 ; k < aStatusPendentes.length ; k++)
+      {
+        dataAgingAbertosGeral.addColumn('number', aStatusPendentes[k]);
+        dataAgingAbertosNivel1.addColumn('number', aStatusPendentes[k]);
+        dataAgingAbertosNivel2.addColumn('number', aStatusPendentes[k]);
+        aCoresGrafico.push( aCores[ aStatusPendentes[k]] );
+      }
+
+      // adicionando as linhas ao dataTable Geral
+      var aValoresStatusMes = [] ;
+
+      for ( var i = 0 ; i < aAgingAbertosGeral.length ; i++ )
+      {
+          aValoresStatusMes = [ aAgingAbertosGeral[i][0] ] ;
+
+          for( var k = 0 ; k < aAgingAbertosGeral[i][1].length ; k++)
+          {
+            aValoresStatusMes.push( aAgingAbertosGeral[i][1][k][1] );
+          }
+
+          dataAgingAbertosGeral.addRows( [
+                                     aValoresStatusMes
+                                   ]
+                                 );
+
+      }
+
+      for ( var i = 0 ; i < aAgingAbertosNivel1.length ; i++ )
+      {
+          aValoresStatusMes = [ aAgingAbertosNivel1[i][0] ] ;
+
+          for( var k = 0 ; k < aAgingAbertosNivel1[i][1].length ; k++)
+          {
+            aValoresStatusMes.push( aAgingAbertosNivel1[i][1][k][1] );
+          }
+
+          dataAgingAbertosNivel1.addRows( [
+                                     aValoresStatusMes
+                                   ]
+                                 );
+
+      }
+
+      for ( var i = 0 ; i < aAgingAbertosNivel2.length ; i++ )
+      {
+          aValoresStatusMes = [ aAgingAbertosNivel2[i][0] ] ;
+
+          for( var k = 0 ; k < aAgingAbertosNivel2[i][1].length ; k++)
+          {
+            aValoresStatusMes.push( aAgingAbertosNivel2[i][1][k][1] );
+          }
+
+          dataAgingAbertosNivel2.addRows( [
+                                     aValoresStatusMes
+                                   ]
+                                 );
+      }
+
+      for( var k = 0 ; k < dataAgingAbertosNivel2.getNumberOfRows() ; k++ )
+      {
+          for( var y = 0 ; y < dataAgingAbertosNivel2.getNumberOfColumns() ; y++ )
+          {
+            if( dataAgingAbertosNivel2.getValue(k,y) == 0 )
+            {
+              dataAgingAbertosNivel2.setCell(k,y,null,null);
+            }
+          }
+      }
+
+
+      for( var k = 0 ; k < dataAgingAbertosNivel1.getNumberOfRows() ; k++ )
+      {
+          for( var y = 0 ; y < dataAgingAbertosNivel1.getNumberOfColumns() ; y++ )
+          {
+            if( dataAgingAbertosNivel1.getValue(k,y) == 0 )
+            {
+              dataAgingAbertosNivel1.setCell(k,y,null,null);
+            }
+          }
+      }
+
+
+      for( var k = 0 ; k < dataAgingAbertosGeral.getNumberOfRows() ; k++ )
+      {
+          for( var y = 0 ; y < dataAgingAbertosGeral.getNumberOfColumns() ; y++ )
+          {
+            if( dataAgingAbertosGeral.getValue(k,y) == 0 )
+            {
+              dataAgingAbertosGeral.setCell(k,y,null,null);
+            }
+          }
+      }
+
+      viewGeralAgingAbertos = new google.visualization.DataView(dataAgingAbertosGeral);
+      viewNivel1AgingAbertos = new google.visualization.DataView(dataAgingAbertosNivel1);
+      viewNivel2AgingAbertos = new google.visualization.DataView(dataAgingAbertosNivel2);
+
+      viewGeralAgingAbertos.setColumns([0, 1,
+                       { calc: "stringify",
+                         sourceColumn: 1,
+                         type: "string",
+                        role: "annotation" },
+                      2,{ calc: "stringify",
+                         sourceColumn: 2,
+                         type: "string",
+                        role: "annotation" },
+                      3,{ calc: "stringify",
+                         sourceColumn: 3,
+                         type: "string",
+                        role: "annotation"}
+                         ]);
+      viewNivel1AgingAbertos.setColumns([0, 1,
+                       { calc: "stringify",
+                         sourceColumn: 1,
+                         type: "string",
+                        role: "annotation" },
+                      2,{ calc: "stringify",
+                         sourceColumn: 2,
+                         type: "string",
+                        role: "annotation" },
+                      3,{ calc: "stringify",
+                         sourceColumn: 3,
+                         type: "string",
+                        role: "annotation"}
+                         ]);
+      viewNivel2AgingAbertos.setColumns([0, 1,
+                       { calc: "stringify",
+                         sourceColumn: 1,
+                         type: "string",
+                        role: "annotation" },
+                      2,{ calc: "stringify",
+                         sourceColumn: 2,
+                         type: "string",
+                        role: "annotation" },
+                      3,{ calc: "stringify",
+                         sourceColumn: 3,
+                         type: "string",
+                        role: "annotation"}
+                         ]);
+
+      options['colors'] = aCoresGrafico ;
+      options['title'] = 'Aging dos Chamados Em Aberto - Geral' ;
+      chartAgingGeral = new google.visualization.ColumnChart(document.getElementById('div_abertos_aging_geral'));
+      google.visualization.events.addListener(chartAgingGeral, 'select', selectHandlerAgingGeral);
+      chartAgingGeral.draw(viewGeralAgingAbertos, options);
+
+      options['colors'] = aCoresGrafico ;
+      options['title'] = 'Aging dos Chamados Em Aberto - 1o Nível' ;
+      chartAgingNivel1 = new google.visualization.ColumnChart(document.getElementById('div_abertos_aging_nivel1'));
+      google.visualization.events.addListener(chartAgingNivel1, 'select', selectHandlerAgingNivel1);
+      chartAgingNivel1.draw(viewNivel1AgingAbertos, options);
+
+
+      options['colors'] = aCoresGrafico ;
+      options['title'] = 'Aging dos Chamados Em Aberto - 2o Nível' ;
+      chartAgingNivel2 = new google.visualization.ColumnChart(document.getElementById('div_abertos_aging_nivel2'));
+      google.visualization.events.addListener(chartAgingNivel2, 'select', selectHandlerAgingNivel2);
+      chartAgingNivel2.draw(viewNivel2AgingAbertos, options);
+
+
+    }
+
+    //--------------------------------------------------------------------------------------------------------------
+    function selectHandlerEAGeral(e) {
+        var selectedItem = chartEAGeral.getSelection()[0];
+        var value = dataEAGeral.getValue(selectedItem.row, 2);
+        var cUrl = "sust_listar_chamados.html" + value ;
+        location.href = cUrl ;
+       }
+
+    function selectHandlerEANivel1(e) {
+        var selectedItem = chartEANivel1.getSelection()[0];
+        var value = dataEANivel1.getValue(selectedItem.row, 2);
+        var cUrl = "sust_listar_chamados.html" + value ;
+        location.href = cUrl ;
+       }
+
+    function selectHandlerEANivel2(e) {
+        var selectedItem = chartEANivel2.getSelection()[0];
+        var value = dataEANivel2.getValue(selectedItem.row, 2);
+        var cUrl = "sust_listar_chamados.html" + value ;
+        location.href = cUrl ;
+       }
+
+    function selectHandlerAgingGeral(e) {
+        var selectedItem = chartAgingGeral.getSelection()[0] ;
+        var value = "?tipo_grafico=em_aberto&id_nivel=geral"+"&"+"id_status="+viewGeralAgingAbertos.getColumnLabel(selectedItem.column)+"&id_aging="+viewGeralAgingAbertos.getValue(selectedItem.row, 0);
+        var cUrl = "sust_listar_chamados.html" + value ;
+        location.href = cUrl ;
+       }
+
+    function selectHandlerAgingNivel1(e) {
+        var selectedItem = chartAgingNivel1.getSelection()[0] ;
+        var value = "?tipo_grafico=em_aberto&id_nivel=nivel1"+"&"+"id_status="+viewNivel1AgingAbertos.getColumnLabel(selectedItem.column)+"&id_aging="+viewNivel1AgingAbertos.getValue(selectedItem.row, 0);
+        var cUrl = "sust_listar_chamados.html" + value ;
+        location.href = cUrl ;
+       }
+
+    function selectHandlerAgingNivel2(e) {
+        var selectedItem = chartAgingNivel2.getSelection()[0] ;
+        var value = "?tipo_grafico=em_aberto&id_nivel=nivel2"+"&"+"id_status="+viewNivel2AgingAbertos.getColumnLabel(selectedItem.column)+"&id_aging="+viewNivel2AgingAbertos.getValue(selectedItem.row, 0);
+        var cUrl = "sust_listar_chamados.html" + value ;
+        location.href = cUrl ;
+       }
+
+    function carrega_menu()
+    {
+
+
+      //alert(window.history.length );
+
+      var $wrapper = document.querySelector('.Div_principal');
+
+      if( tipo_acesso == "full" )
+      {
+         HTMLNovo = '<div id="header"> </div>';
+      }
+      else
+      {
+        HTMLNovo = '<div id="header_painel"> </div>';
+      }
+
+      $wrapper.insertAdjacentHTML('afterbegin', HTMLNovo);
+    }
+
+    </script>
+
+  </head>
+
+  <body>
+
+    <div class="Div_principal"> </div>
+    <script type="text/javascript">
+      carrega_menu();
+    </script>
+
+
+    <container style="margin:15px;font-size:16px;font-family: Raleway;letter-spacing: 0.6px;">
+      <div class="row" style="height:5px;" >
+        <div id="div_título" class="col s12 m4 l4" >Div1</div>
+      </div>
+
+      <div class="row" style="min-height:100px;">
+        <div id="div_Saldos_Geral" class="col s12 m4 l4" >Div1</div>
+        <div id="div_Saldos_N1" class="col s12 m4 l4" >Div1</div>
+        <div id="div_Saldos_N2" class="col s12 m4 l4" >Div1</div>
+      </div>
+
+      <div class="row" style="min-height:100px;">
+        <div id="div_chamados_pendentes_geral" class="col s12 m4 l4" >Div1</div>
+        <div id="div_chamados_pendentes_nivel1" class="col s12 m4 l4" >Div2</div>
+        <div id="div_chamados_pendentes_nivel2" class="col s12 m4 l4" >Div2</div>
+      </div>
+
+      <div class="row" style="min-height:100px;">
+      <div id="div_abertos_aging_geral" class="col s12 m4 l4" >Div1</div>
+      <div id="div_abertos_aging_nivel1" class="col s12 m4 l4" >Div1</div>
+      <div id="div_abertos_aging_nivel2" class="col s12 m4 l4" >Div1</div>
+
+      <div class="row" style="min-height:100px;">
+      <div id="div_chamados_encerrados_geral" class="col s12 m4 l4" >Div1</div>
+      <div id="div_chamados_encerrados_nivel1" class="col s12 m4 l4" >Div1</div>
+      <div id="div_chamados_encerrados_nivel2" class="col s12 m4 l4" >Div1</div>
+      </div>
+
+      <div class="row" style="min-height:100px;">
+      <div id="div_encerrados_mensal_geral" class="col s12 m4 l4" >Div1</div>
+      <div id="div_encerrados_mensal_nivel1" class="col s12 m4 l4" >Div1</div>
+      <div id="div_encerrados_mensal_nivel2" class="col s12 m4 l4" >Div1</div>
+      </div>
+
+      </div>
+
+
+    </container>
+  <div id="footer"></div>
+  </body>
+
+</html>
+

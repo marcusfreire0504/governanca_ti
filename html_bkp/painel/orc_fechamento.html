@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+  <head>
+   <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+
+    <script type="text/javascript">
+
+    google.load('visualization', '1', { packages: ['table']});
+
+    var visualization;
+
+    google.setOnLoadCallback(drawQuadro);
+
+    var url   = window.location.search.replace("?", "");
+
+    var tempUrl = url.replace(/%20/g," ");
+
+    var itens = tempUrl.split("&");
+
+    var nMesReferencia = 11;
+
+    parametro = itens[0].split("=");
+
+    var nm_grupo = parametro[1]
+
+    function drawQuadro()
+    {
+
+      var stringquery='SELECT C,D,E,SUM(G) WHERE E<>"" AND B<>"Sem_Grupo"  AND B="' + nm_grupo + '" AND F>' + nMesReferencia + ' GROUP BY C,D,E PIVOT F order by E';
+
+      var aEntidade = getPlanilha( "lanc_comprometido" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+      query.setQuery(stringquery);
+      query.send(handleQueryResponse);
+
+    }
+
+    function handleQueryResponse(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+      var otherData = response.getDataTable();
+
+      var data = new google.visualization.DataTable();
+
+      var totalRealizadoGeral = 0;
+
+      var nColunas = 4;
+
+      var aTotais = adicionaColunas( [] , (12-nMesReferencia)+1 ) ;
+
+      data.addColumn('number', 'conta' );
+      data.addColumn('string', 'nome' );
+      data.addColumn('string', 'favorecido');
+      data.addColumn('number', 'comprometido' );
+      data.addColumn('number','realizado' );
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+
+        conta=otherData.getValue(i, 0);
+        nome_conta=otherData.getValue(i, 1);
+        nome_favorecido=otherData.getValue(i, 2);
+
+        var aLinha = adicionaColunas( [conta,nome_conta.substring(0,20),nome_favorecido.substring(0,20)] , (12-nMesReferencia)+1 );
+
+        data.addRows([ aLinha ]);
+
+        var totalRealizado = 0;
+
+        for( var n = 3 ; n < nColunas ; n++)
+        {
+          var nValor = 0 + otherData.getValue(i, n) ;
+          data.setValue(i, n, parseFloat(nValor.toFixed(0))) ;
+          totalRealizado += nValor ;
+          aTotais[n-3] += nValor ;
+        }
+
+        //alert( totalRealizado );
+        totalRealizadoGeral += totalRealizado ;
+        aTotais[aTotais.length-1] = totalRealizadoGeral ;
+
+        data.setValue(i,nColunas, parseFloat(totalRealizado.toFixed(0)) ) ;
+        //data.setValue(i,(nMesReferencia-1), parseFloat(totalRealizado.toFixed(0)) ) ;
+      }
+
+      var aLinha = adicionaColunas( [0,' ','total '], (12-nMesReferencia)+1 );
+
+      data.addRows([ aLinha ]);
+
+      var cssClassNames = {
+                            'tableRow': '',
+                            'oddTableRow': 'beige-background',
+                            'selectedTableRow': 'orange-background large-font',
+                            'tableCell': 'small-font',
+                            'rowNumberCell': 'underline-blue-font',
+                            };
+
+      data.setProperty(0, 0, {style: 'width:100px'});
+
+      for( var n = 0 ; n < aTotais.length ; n++)
+      {
+          var nValor = aTotais[n];
+          data.setCell(i, n+3, parseFloat(nValor.toFixed(0)), null, {'className': 'total-font'});
+      }
+
+      data.setCell(i, 2, 'total', null, {'className': 'total-font'});
+
+      var options = {'showRowNumber': false, 'allowHtml': true, 'cssClassNames': cssClassNames,scrollLeftStartPosition : 50};
+
+      var table = new google.visualization.Table(document.getElementById('table1_div'));
+      table.draw(data, options);
+
+      document.getElementById("div_favorecido").innerHTML = "Fechamento do mês de <B> " + mesLiteral( nMesReferencia ) + "</B> do grupo <B>" + nm_grupo + '<B>';
+
+    }
+
+    </script>
+
+  </head>
+
+  <body style="overflow-y:scroll;">
+
+    <div id="header"></div>
+
+    <container style="margin:15px;font-size:16px;font-family: Raleway;letter-spacing: 0.6px;">
+
+    <a class="waves-effect waves-blue btn-small " onclick="window.history.go(-1)" style="color: black;" ><i class="material-icons left">navigate_before</i>voltar</a>
+
+      <div id="div_favorecido" ></div>
+            <br>
+
+    <div class="row">
+      <div id="table1_div" class="col s12 m6 l12" style="font-family: Raleway;letter-spacing: 0.6px;position:relative;overflow-y:auto;padding-top: -10px;
+height:500px;">.col s12 m3 l</div>
+    </div>
+
+    </container>
+
+    <div id="footer"></div>
+
+  </body>
+
+</html>
+

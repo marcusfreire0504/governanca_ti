@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html>
+  <head>
+
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+
+    <script type="text/javascript">
+
+    google.charts.load('current', {'packages':['gantt']});
+
+    google.charts.setOnLoadCallback(drawCards);
+
+    google.charts.setOnLoadCallback(drawGantt);
+
+    var variaveis=location.search.split("?");
+
+    var id_projeto = variaveis[1].split("=");
+
+    var total_percentual = 0;
+
+    // ----------------------------------
+    function drawGantt()
+    {
+
+      var aEntidade = getPlanilha( "calendario" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      var stringquery='SELECT F,E,J,K,I,B,G WHERE NOT(E LIKE "X_%") AND B = ' + id_projeto[1] + ' ORDER BY J'; // projetos / calendario
+      query.setQuery(stringquery);
+      query.send(handleQueryResponse);
+
+    }
+
+    // -----------------------------------
+    function handleQueryResponse(response)
+    {
+      if (response.isError())
+      {
+        alert('Error in query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+        return;
+      }
+
+      var otherData = response.getDataTable();
+
+      var ganttData = new google.visualization.DataTable({cols: [
+      {type: 'string', label: 'Task Id'},
+      {type: 'string', label: 'Task Name'},
+      {type: 'string', label: 'Resource'},
+      {type: 'date', label: 'Start'},
+      {type: 'date', label: 'End'},
+      {type: 'number', label: 'Duration'},
+      {type: 'number', label: '% Complete'},
+      {type: 'string', label: 'Dependencies'},
+      ]});
+
+      var hoje = new Date();
+      var dataInicio = hoje;
+      var dataFim = hoje;
+      var tam_height = 0;
+      var txt_aderencia = "<B>Aderência/Descolamento</B>";
+      var cStatus;
+      var cCorStatus;
+
+      var total_horas_estimadas = 0;
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+        total_horas_estimadas+= otherData.getValue(i, 6);
+      }
+
+      var aColors = [];
+      var colorMap = {
+                       azul:"#3366CC",
+                       vermelho:"#FF0000",
+                       verde:"#77933C",
+                       amarelo:"#FFFF66",
+                       cinza:"#808080",
+                      };
+
+      var colorMaplighten = {
+                       azul:"#bbdefb",
+                       vermelho:"#ef9a9a",
+                       verde:"#c8e6c9",
+                       amarelo:"#FFFF66",
+                       cinza:"#bdbdbd",
+                      };
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+
+        tam_height += 24;
+
+        total_percentual += ((otherData.getValue(i, 6) / total_horas_estimadas)*100) * otherData.getValue(i, 4)/100;
+
+        duracao_fase = (new Date(otherData.getValue(i, 3)) - new Date(otherData.getValue(i, 2)));
+
+        tempo_decorrido_fase = hoje - new Date(otherData.getValue(i, 2));
+
+        percentual_concluido_fase = tempo_decorrido_fase  / duracao_fase *100;
+
+        if(percentual_concluido_fase>100)
+        {
+           percentual_concluido_fase=100;
+        }
+
+        var txt_fase = otherData.getValue(i, 0)+"("+otherData.getValue(i, 1)+")" + "&nbsp&nbsp:";
+
+        if (txt_fase.length > 38)
+        {
+          txt_fase = otherData.getValue(i, 0)+"("+ otherData.getValue(i, 1).substring(0, otherData.getValue(i, 1).length-(txt_fase.length-38))    +")" + "&nbsp&nbsp:";
+        }
+
+        var deslocamento = ( percentual_concluido_fase - otherData.getValue(i, 4) );
+
+        if( otherData.getValue(i, 2) > hoje)
+        {
+           deslocamento = 0;
+        }
+
+        if( deslocamento > 0 )
+        {
+           cor = "#FF0000";
+        }
+        else if(deslocamento < 0  )
+        {
+           cor = "#0000FF";
+        }
+        else
+        {
+          cor = "#000000";
+        }
+
+        txt_aderencia += '<p style=color:'+cor+';line-height:5px;">' + txt_fase +  Math.abs(deslocamento.toFixed(2)) + "%</p>";
+
+        if( otherData.getValue(i, 4) != 0 && otherData.getValue(i, 4) != null )
+        {
+            percentual_informado=otherData.getValue(i, 4);
+        }
+        else
+        {
+          percentual_informado = 0.01;
+        }
+
+        if( otherData.getValue(i, 2) > hoje && percentual_informado == 0 )
+        {
+          percentual_informado = 0.01;
+        }
+
+        if( otherData.getValue(i, 2) > hoje)
+        {
+          if( percentual_informado >= 100 )
+          {
+            aColors.push(new Array(colorMap["verde"],colorMap["verde"]));
+            percentual_informado=0.01;
+          }
+          else
+          {
+            aColors.push(new Array(colorMap["cinza"],colorMaplighten["cinza"]));
+            percentual_informado=0.01;
+          }
+        }
+        else
+        {
+          if( percentual_informado >= 100)
+          {
+            aColors.push(new Array(colorMap["verde"],colorMaplighten["verde"]));
+          }
+          else if( percentual_informado < 100)
+          {
+
+            if( percentual_informado > percentual_concluido_fase )
+            {
+              aColors.push(new Array(colorMap["azul"],colorMaplighten["azul"]));
+            }
+
+            if( percentual_informado < percentual_concluido_fase )
+            {
+              aColors.push(new Array(colorMap["vermelho"],colorMaplighten["vermelho"]));
+            }
+          }
+        }
+
+        ganttData.addRow([
+                            otherData.getValue(i, 0)+"("+otherData.getValue(i, 1)+")",
+                            otherData.getValue(i, 0)+"("+otherData.getValue(i, 1)+")",
+                            otherData.getValue(i, 1),
+                            otherData.getValue(i, 2),
+                            otherData.getValue(i, 3),
+                            duracao_fase,
+                            parseFloat( percentual_informado.toFixed(2) ),
+                            null,
+
+        ]);
+
+
+        if( otherData.getValue(i, 2) < dataInicio )
+        {
+          dataInicio = otherData.getValue(i, 2);
+        }
+
+        if( otherData.getValue(i, 3) > dataFim )
+        {
+          dataFim = otherData.getValue(i, 3);
+        }
+      }
+
+      if( tam_height < 120 )
+      {
+        tam_height = 120;
+      }
+
+      ganttData.sort([{column: 3}]);
+
+      var w = window,
+      d = document,
+      e = d.documentElement,
+      g = d.getElementsByTagName('body')[0],
+      xWidth = w.innerWidth || e.clientWidth || g.clientWidth,
+      yHeight = w.innerHeight|| e.clientHeight|| g.clientHeight;
+
+      var options = {
+                       tooltip: {isHtml: false},
+                       height: tam_height,
+
+                       width: 750,
+                       legend: 'none',
+                       chartArea: {  width: "30%", height: "50%" },
+                       gantt: { defaultStartDate: new Date(2018, 1, 2),
+                                trackHeight: 20,
+                                barHeight: 10,
+                                labelStyle: {  fontSize: 12,fontName: 'Arial',color: '#000000'},
+                                percentEnabled: 'True',
+                                legend: { maxLines: 1, textStyle: {fontSize: 8}},
+
+                       },
+
+      };
+
+      var container = document.getElementById('chartGantt');
+      var chart = new google.visualization.Gantt(container);
+
+      document.getElementById("div_aderencia").innerHTML = txt_aderencia;
+      document.getElementById("nome_status").innerHTML += "<br /><B>Percentual concluído: </B> ";
+      document.getElementById("nome_status").innerHTML += parseFloat(total_percentual.toFixed(2)) + "%";
+
+      var percentual_decorrido = ((hoje - dataInicio)/(dataFim-dataInicio))*100;
+      var diffDays = Math.ceil((Math.abs(dataFim - dataInicio)) / (1000 * 3600 * 24));
+      var nDiasUteis = diasUteis (dataInicio,dataFim);
+
+      document.getElementById("nome_status").innerHTML += "<br />"+"<B>Percentual do tempo decorrido: </B>"+  parseFloat(percentual_decorrido.toFixed(2)) + "%";
+
+      if( parseFloat(total_percentual.toFixed(0)) >= 100 )
+      {
+        cStatus = "concluído";
+        cCorStatus = colorMap["verde"];
+      }
+      else
+      {
+
+        if( percentual_decorrido > total_percentual )
+        {
+          cStatus = "atrasado";
+          cCorStatus = colorMap["vermelho"]
+        }
+        else if( total_percentual == 0 )
+        {
+          cStatus = "não iniciado";
+          cCorStatus = colorMap["cinza"];
+        }
+        else if( total_percentual >= percentual_decorrido )
+        {
+          cStatus = "no prazo";
+          cCorStatus = colorMap["azul"];
+        }
+      }
+
+      document.getElementById("nome_status").innerHTML += "<br /><B>Status : </B> " + cStatus + '<i class="material-icons"style="color:'+cCorStatus+';">lens</i>';
+      document.getElementById("nome_status").innerHTML += "<br /><B>Período do Projeto : </B> de " + dataInicio.toLocaleDateString() + " à " + dataFim.toLocaleDateString();
+      document.getElementById("nome_status").innerHTML += "<br /><B>Duração : </B> " + diffDays +" dias ( " + nDiasUteis + " dias úteis )";
+
+      // monitor activity, change bar color
+      var observer = new MutationObserver(function (mutations) {
+          Array.prototype.forEach.call(container.getElementsByTagName('path'), function(bar, index) {
+            var barY;
+            var cCor1 = aColors[index][0];
+            var cCor2 = aColors[index][1];
+
+            bar.setAttribute('fill', cCor1 );
+
+            barY = bar.getAttribute('d').split(' ')[2];
+            Array.prototype.forEach.call(container.getElementsByTagName('rect'), function(bar2) {
+            if (bar2.getAttribute('y') === barY) {
+
+              bar2.setAttribute('fill', cCor2 );
+
+            }
+              });
+
+
+        });
+      });
+
+      var observer2 = new MutationObserver(function () {
+          $.each($('text'), function (index, label) {
+          var rowIndex = ganttData.getFilteredRows([{
+          column: 1,
+          value: $(label).text()
+          }]);
+
+          if (rowIndex.length > 0) {
+              $(label).attr('fill', '#000000')
+          }
+        });
+      });
+
+       observer2.observe(container, {
+        childList: true,
+        subtree: true
+      });
+
+      observer.observe(container, {
+        childList: true,
+        subtree: true
+      });
+
+      chart.draw(ganttData, options);
+
+    }
+
+    // ----------------------------------
+    function drawCardOrcamento()
+    {
+      var aEntidade = getPlanilha( "projetosorc" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      var stringquery = 'SELECT E,SUM(G) WHERE B=' + id_projeto[1] + 'GROUP BY E PIVOT F' ; // projetos / orçamento
+
+      query.setQuery(stringquery );
+
+      query.send(handleQueryResponseOrc);
+
+      return;
+    }
+
+    // ------------------------------------
+    function handleQueryResponseOrc(response)
+    {
+
+      var tamanho_label = 0;
+
+      var nTotalOrcado = 0 ;
+
+      var nTotalRealizado = 0 ;
+
+      var texto = "<B>Orçamento</B>";
+
+      texto += '<a class="btn-floating btn-small waves-effect waves-light" href="proj_ficha_orcamento.html?id_projeto='+27+'"><i class="material-icons">add</i></a>'+"<br />";
+
+      texto += "<br /><pre>"
+
+      var otherData = response.getDataTable();
+
+      for( var i = 0 ; i < otherData.getNumberOfRows() ; i++ )
+      {
+        if( otherData.getValue( i , 0).length > tamanho_label )
+        {
+          tamanho_label = otherData.getValue( i , 0).length ;
+        }
+
+      }
+
+      texto += preenche_espacos("grupo",tamanho_label) + "      orçado   realizado       saldo" + "<br />";
+      texto += "-".repeat(tamanho_label+3) + "----------------------------------" + "<br />";
+
+      for( var i = 0 ; i < otherData.getNumberOfRows() ; i++ )
+      {
+          texto += preenche_espacos(otherData.getValue( i , 0),tamanho_label) + " " + preenche_espacos(otherData.getValue( i , 1).toLocaleString('pt-BR'),10,"left") + " " + preenche_espacos(otherData.getValue( i , 2).toLocaleString('pt-BR'),10,"left") + " " + preenche_espacos((otherData.getValue( i , 1)-otherData.getValue( i , 2)).toLocaleString('pt-BR'),10,"left") +"<br />" ;
+
+          nTotalOrcado += otherData.getValue( i , 1) ;
+          nTotalRealizado += otherData.getValue( i , 2) ;
+
+      }
+
+      texto += "-".repeat(tamanho_label+3) + "----------------------------------" + "<br />";
+
+      texto += preenche_espacos("total",tamanho_label) + " " + preenche_espacos((nTotalOrcado.toLocaleString('pt-BR')).toString(),10,"left") + " " + preenche_espacos(nTotalRealizado.toLocaleString('pt-BR'),10,"left") + " " + preenche_espacos((nTotalOrcado-nTotalRealizado).toLocaleString('pt-BR'),10,"left") +"<br />" ;
+
+      texto += "</pre>" ;
+
+      document.getElementById("div_orcamento").innerHTML = texto;
+
+    }
+
+    // ----------------------------------
+    function drawCards()
+    {
+
+
+      var aEntidade = getPlanilha( "projetos" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      var stringquery = 'SELECT C,AB,K,L,M,N,O,P,Q ,R ,S ,T ,U ,W ,X ,V ,Y WHERE B=' + id_projeto[1] ; // projetos / projetos
+
+      query.setQuery(stringquery );
+
+      query.send(handleQueryResponse1);
+      return;
+    }
+
+    // ------------------------------------
+    function handleQueryResponse1(response)
+    {
+
+      if (response.isError())
+      {
+        alert('Error in query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+        return;
+      }
+
+      var otherData = response.getDataTable();
+
+      // Card 1 Nome do Projeto, Status, Patrocinadores e Período
+      var texto = otherData.getValue(0, 4)+' ';
+      var res = texto.replace(/-/g, "<br />");
+
+      var texto2 =  "<B>Projeto: </B>" + otherData.getValue(0, 0)+"<br />";
+      texto2 += "<B>Patrocinadores : </B>" + res;
+
+      document.getElementById("nome_status").innerHTML = texto2;
+
+      // Card 2 Objetivos e Benefícios do Projeto
+      // Objetivos do projeto
+      var texto = otherData.getValue(0, 2)+" ";
+      var res = texto.replace(/-/g, "<br />");
+      texto = res;
+
+      // Benefícios do Projeto
+      var texto2 = otherData.getValue(0, 3)+" ";
+      var res = texto2.replace(/-/g, "<br />");
+      texto2 = res;
+
+      document.getElementById("div_objetivos_beneficios").innerHTML = "<B>Objetivo</B>"+texto+"<br />"+"<br />"+"<B>Benefícios</B>"+texto2;
+
+
+      // Card 3 Realizações e Próximos Passos
+      if( otherData.getValue(0, 13) != null)
+      {
+        texto = otherData.getValue(0, 13);
+        var res = texto.replace(/-/g, "<br />");
+        texto = res;
+      }
+      else
+      {
+         texto = " ";
+      }
+
+      if( otherData.getValue(0, 14) != null)
+      {
+        texto2 = otherData.getValue(0, 14);
+        var res = texto2.replace(/-/g, "<br />");
+        texto2 = res;
+      }
+      else
+      {
+         texto2 = " ";
+      }
+
+      var txt_link_hist= '<a href="proj_historico.html?id_proj='+id_projeto[1] +'">histórico</a>'
+
+      document.getElementById("div_realizacoes").innerHTML = "<B>Evolução / Realizações</B>    "+txt_link_hist+texto+"<br /><br />"+"<B>Próximos passos</B>"+texto2;
+
+      // Card 4 Caminho_crítico / Riscos e Plano de Ação
+      if( otherData.getValue(0, 12) != null)
+      {
+        texto = otherData.getValue(0, 12);
+        var res = texto.replace(/-/g, "<br />");
+        texto = res;
+      }
+      else
+      {
+        texto = " ";
+      }
+
+      if(otherData.getValue(0, 15) != null)
+      {
+        texto2 = otherData.getValue(0, 15);
+        var res = texto2.replace(/-/g, "<br />");
+        texto2 = res;
+      }
+      else
+      {
+        texto2 = " ";
+      }
+
+      document.getElementById("div_caminho_critico").innerHTML = "<B>Caminho Crítico / Riscos</B>"+texto+"<br /><br />"+"<B>Plano de Ação</B>"+texto2;
+
+      // Card5 Orçamento
+      var orcamento_valor	= otherData.getValue(0, 5);
+      var orcamento_FTE = otherData.getValue(0, 6);
+      var orcamento_parceiros = otherData.getValue(0, 7);
+      var orcamento_solucoes = otherData.getValue(0, 8);
+
+      if(orcamento_valor==null)
+      {
+        orcamento_valor = '0,00';
+      }
+
+      texto = "<B>Orçamento</B>"+"<br />"+"Valor : " + orcamento_valor + "<br />" + orcamento_FTE + "<br />" + "Parceiros : " + orcamento_parceiros +  "<br />"+"Soluções: " + orcamento_solucoes;
+
+      document.getElementById("div_orcamento").innerHTML = texto;
+
+
+      // card6 Observações
+      if( otherData.getValue(0, 16) != null)
+      {
+        texto = otherData.getValue(0, 16);
+        var res = texto.replace(/-/g, "<br />");
+        texto = res;
+      }
+      else
+      {
+        texto = " ";
+      }
+
+      document.getElementById("div_observacoes").innerHTML = "<B>Observações</B>"+texto;
+
+    }
+
+    </script>
+
+    <style>
+    pre {
+          display: block;
+          font-family: monospace;
+          white-space: pre;
+          margin: 1em 0;
+          font-size: 11px;
+        }
+</style>
+
+  </head>
+
+  <body>
+
+    <div id="header"></div>
+
+    <container>
+
+      <div class="row" style="min-height:100px;margin:1px;font-size:16px;font-family: Roboto;letter-spacing: 1px;">
+          <div id="nome_status" class="col s12 m4" style="border-width: 2px; border-color: black; border-style: solid; border-radius: 10px;margin:1px;" >Dados</div>
+          <div id="div_realizacoes" class="col s12 m4" style="border-width: 2px; border-color: black; border-style: solid; display: inline-block; border-radius: 10px;margin:1px;">Evolução / Realizações </div>
+          <div id="div_caminho_critico" class="col s12 m3" style="border-width: 2px; border-color: black; border-style: solid; display: inline-block; border-radius: 10px;margin:1px;">Riscos </div>
+
+      </div>
+
+      <div class="row" style="min-height:100px;margin:1px;font-size:16px;font-family: Roboto;letter-spacing: 1px;">
+        <div id="div_objetivos_beneficios" class="col s12 m4" style="border-width: 2px; border-color: black; border-style: solid; border-radius: 10px;margin:1px;" >Objetivo</div>
+        <div id="chartGantt" class="col s12 m6" style="margin:1px;">Cronograma</div>
+
+      </div>
+
+      <div class="row" style="min-height:100px;margin:1px;font-size:16px;font-family: Roboto;letter-spacing: 1px;">
+        <div id="div_orcamento" class="col s12 m4" style="border-width: 2px; border-color: black; border-style: solid; display: inline-block; border-radius: 10px;margin:1px;">Orçamento </div>
+        <div id="div_observacoes" class="col s12 m4" style="border-width: 2px; border-color: black; border-style: solid; display: inline-block; border-radius: 10px;margin:1px;">Observações </div>
+        <div id="div_aderencia" class="col s12 m3" style="font-size:12px;border-width: 2px; border-color: black; border-style: solid; display: inline-block; border-radius: 10px;margin:1px;">Aderência/Descolamento</div>
+      </div>
+
+    </container>
+
+    <div id="footer"></div>
+
+  </body>
+</html>

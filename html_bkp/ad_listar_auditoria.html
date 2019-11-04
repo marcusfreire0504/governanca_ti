@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+  <head>
+   <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+
+    <script type="text/javascript">
+
+    google.load('visualization', '1', { packages: ['table']});
+
+    var visualization;
+    var dataPontos ;
+
+    google.setOnLoadCallback(drawQuadro);
+
+    var url   = window.location.search.replace("?", "");
+
+    var tempUrl = url.replace(/%20/g," ");
+    var itens = tempUrl.split("&");
+
+    parametro = itens[0].split("=");
+
+    var id_frente= parametro[1];
+
+    parametro = itens[1].split("=");
+    var tipo_grafico = parametro[1];
+
+    parametro = itens[2].split("=");
+    var valor = parametro[1];
+
+
+    function drawQuadro()
+    {
+
+      if( tipo_grafico == 'situacao' )
+      {
+        var stringquery = 'SELECT A,B,C,D,E,F WHERE B = "' + valor + '"';
+      }
+      else if( tipo_grafico == 'semaforo' )
+      {
+        var stringquery = 'SELECT A,B,C,D,E,F WHERE C = ' + valor ;
+      }
+
+      var aEntidade = getPlanilha( "situacao" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      query.setQuery(stringquery);
+
+      query.send(handleQueryResponse);
+
+    }
+
+    function handleQueryResponse(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+      var otherData = response.getDataTable();
+
+      var dataPontos = new google.visualization.DataTable();
+
+      dataPontos.addColumn('string', 'id');
+      dataPontos.addColumn('string', 'status');
+      dataPontos.addColumn('number', 'semáforo');
+      dataPontos.addColumn('string', 'assunto');
+      dataPontos.addColumn('string', 'nome_item');
+      dataPontos.addColumn('string', 'aspectos_identificados');
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+
+        dataPontos.addRows([
+                             ['<a href="ad_fichaauditoria.html?id_frente='+id_frente+'&id_ponto=' + otherData.getValue(i, 0)+'">'+otherData.getValue(i, 0)+'</a>',
+                               otherData.getValue(i, 1),
+                               otherData.getValue(i, 2),
+                               otherData.getValue(i, 3),
+                               '<a href="ad_fichaauditoria.html?id_frente='+id_frente+'&id_ponto=' + otherData.getValue(i, 0)+'">'+otherData.getValue(i, 4)+'</a>',
+                               otherData.getValue(i, 5)
+                             ]
+                           ]);
+       }
+
+      var cssClassNames = {
+                            'tableRow': '',
+                            'oddTableRow': 'beige-background',
+                            'selectedTableRow': 'orange-background large-font',
+                            'tableCell': 'small-font',
+                            'rowNumberCell': 'underline-blue-font',
+                            };
+
+      var options = {'showRowNumber': false, 'allowHtml': true, 'cssClassNames': cssClassNames,scrollLeftStartPosition : 50};
+
+      var table = new google.visualization.Table(document.getElementById('table1_div'));
+      table.draw(dataPontos, options);
+
+      document.getElementById("div_favorecido").innerHTML = "Pontos da Frente <B>" + id_frente + ' ( ' + tipo_grafico + ' = ' + valor + ' )'+ '<B>';
+
+    }
+
+    </script>
+
+  </head>
+
+  <body style="overflow-y:scroll;">
+
+    <div id="header"></div>
+
+    <container style="margin:15px;font-size:16px;font-family: Raleway;letter-spacing: 0.6px;">
+      <div id="div_favorecido" ></div>
+            <br>
+
+    <div class="row">
+      <div id="table1_div" class="col s12 m6 l12" style="font-family: Raleway;letter-spacing: 0.6px;position:relative;overflow-y:auto;padding-top: -10px;
+height:500px;">.col s12 m3 l</div>
+    </div>
+
+    </container>
+
+    <div id="footer"></div>
+
+  </body>
+
+</html>
+

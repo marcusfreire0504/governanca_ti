@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <!--Load the AJAX API-->
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+  </head>
+
+  <body onLoad = "drawChartGantt()">
+
+    <div id="header"></div>
+
+    <container>
+
+    <div class="row" style="min-height:100px;">
+      <div id="chartGantt" class="col s12 m6 l6">gantt</div>
+      <div class="col s12 m2 l1">ok</div>
+      <div id="proj_nao_planejados" class="col s12 m2 l2">Projetos Não Planejados</div>
+      <div id="proj_concluidos" class="col s12 m2 l2">Projetos Concluidos</div>
+
+    </div>
+
+    <div class="row" style="min-height:100px;">
+      <div id="chart_div_OrigemDepartamental" class="col s12 m4 l4" >Origem Departamental</div>
+      <div id="chart_div_OrigemProjetos" class="col s12 m4 l4">Distribuição por Fase</div>
+      <div id="div_Planejados" class="col s12 m4 l4"  >Planejados x Não Planejados</div>
+    </div>
+
+    <div class="row" style="min-height:100px;">
+      <div id="chart_div_StatusProjetos" class="col s12 m4">Status dos Projetos</div>
+      <div id="chart_div_StatusPrazo" class="col s12 m4">Status de Prazo</div>
+      <div id="chart_div_ProjetosFase" class="col s12 m4">Projetos por Fase</div>
+    </div>
+
+    <div class="row" style="min-height:100px;">
+      <div id="chart_div_PrevisaoEntrega" class="col s12 m4">Previsão de Entregas</div>
+    </div>
+
+    </container>
+
+    <script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/js/materialize.min.js"></script>
+
+    <div id="footer"></div>
+
+    <script src="./js/functions2.js" DEFER="DEFER"></script>
+
+  </body>
+
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <!--Load the AJAX API-->
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+
+    <script type="text/javascript">
+
+    google.load('visualization', '1', { packages: ['table']});
+
+    var visualization;
+
+    google.setOnLoadCallback(montaListaAreas);
+
+    function montaListaAreas()
+    {
+
+      var stringquery='SELECT E,COUNT(E) WHERE E<>"" GROUP BY E'; // projetos / projetos
+
+      var aEntidade = getPlanilha( "projetos" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+      query.setQuery(stringquery);
+      query.send(handleQueryResponse);
+
+    }
+
+    function handleQueryResponse(response)
+    {
+
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+      var otherData = response.getDataTable();
+
+      var data = new google.visualization.DataTable();
+
+      var nTotalProjetos = 0;
+
+      document.getElementById("div_areas").innerHTML = "Áreas Demandantes";
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+
+        var cLink = '<p><a href="proj_portfolio.html?classific='+otherData.getValue(i, 0)+'">' + otherData.getValue(i, 0) + ' ('+otherData.getValue(i, 1)+')</a></p>';
+        document.getElementById("div_areas").innerHTML += cLink ;
+        nTotalProjetos += otherData.getValue(i, 1) ;
+
+      }
+
+      var cLink = '<p><a href="proj_portfolio.html?classific=full">' + 'Todas as Áreas' + ' ('+nTotalProjetos+')</a></p>';
+      document.getElementById("div_areas").innerHTML += cLink ;
+
+    }
+
+  </script>
+  </head>
+
+  <body>
+
+    <div id="header"></div>
+
+    <container>
+
+      <div class="row" style="min-height:100px;margin:1px;font-size:16px;font-family: Roboto;letter-spacing: 1px;">
+      <div id="div_areas" class="col s12 m6 l12" style="font-family: Roboto;letter-spacing: 0.6px;position:relative;overflow-y:auto;padding-top: -10px;
+height:500px;">Departamentos</div>
+    </div>
+
+    </container>
+
+    <div id="footer"></div>
+
+  </body>
+
+</html>

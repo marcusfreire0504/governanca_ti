@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+
+    <script type="text/javascript">
+
+    google.load('visualization', '1', { packages: ['table']});
+
+    var variaveis=location.search.split("?");
+
+    var itens = variaveis[1].split("=");
+
+    var id_projeto = itens[1] ;
+
+    var visualization;
+
+    google.setOnLoadCallback(drawQuadro);
+
+    // -------------------------
+    function drawQuadro()
+    {
+
+      var aEntidade = getPlanilha( "projetosorc" ) ; //projetos/orçamento
+      var stringquery = "SELECT E,F,SUM(G) WHERE F<>'' AND B = " + id_projeto + " GROUP BY E,F PIVOT I";
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+      query.setQuery(stringquery);
+      query.send(handleQueryResponse);
+
+    }
+
+    function handleQueryResponse(response)
+    {
+      if (response.isError())
+      {
+          alert('There was a problem with your query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+          return;
+      }
+
+      var otherData = response.getDataTable();
+
+      var dataTable = new google.visualization.DataTable();
+
+      var cAnoMes = "" ;
+
+      var aLinha = [] ;
+
+      var aLinhaSubTotais = [] ;
+
+      var aLinnhaTotalOrçado = [] ;
+
+      var aLinnhaTotalRealizado = [] ;
+
+      var aLinhaTotalGeral = [] ;
+
+      var cLinha = "";
+
+      var aLinhasDeTotais = [];
+
+      var nTotaldaLinha = 0;
+
+      dataTable.addColumn( 'string', 'linha' ) ;
+      dataTable.addColumn( 'string', 'tipo'  ) ;
+
+      // cria os arrays "vazios"
+      aLinhaSubTotais = [" ","saldo"];
+      aLinnhaTotalOrçado = ["geral","orçado"];
+      aLinnhaTotalRealizado = ["geral","realizado"];
+      aLinhaTotalGeral = [" ","total"];
+
+      for( var i = 2 ; i < otherData.getNumberOfColumns() ; i++ )
+      {
+        aLinhaSubTotais.push(0) ;
+        aLinnhaTotalOrçado.push(0) ;
+        aLinnhaTotalRealizado.push(0) ;
+        aLinhaTotalGeral.push(0) ;
+      }
+
+      aLinhaSubTotais.push(0) ;
+      aLinnhaTotalOrçado.push(0) ;
+      aLinnhaTotalRealizado.push(0) ;
+      aLinhaTotalGeral.push(0) ;
+
+      // Adiciona ao datatable 1 coluna para cada mês retornado na query.
+      // Inicia a partir do 3o elemento pois os dois primeiros são o nome e o tipo da linha
+      for( var i = 2 ; i < otherData.getNumberOfColumns() ; i++ )
+      {
+        cAnoMes = mesLiteral( otherData.getColumnLabel(i).substring(4,6) ).substring(0,3)+"/"+otherData.getColumnLabel(i).substring(2,4)
+        dataTable.addColumn( 'number' , cAnoMes ) ;
+      }
+
+      dataTable.addColumn( 'number' , 'total' ) ;
+
+      // adiciona ao datatable as linhas retornadas
+      for ( var i = 0 ; i < otherData.getNumberOfRows() ; i++ )
+      {
+
+        // quando muda a linha do orçamento, adiciona a linha de subtotais ao datatable e limpa as variáveis de controle e acumuladores
+        if( otherData.getValue(i, 0) != cLinha )
+        {
+           if( i > 0 )
+           {
+             dataTable.addRows([ aLinhaSubTotais ]) ;
+             aLinhasDeTotais.push(dataTable.getNumberOfRows()-1 ) ;
+             dataTable.addRow() ;
+           }
+
+           cLinha = otherData.getValue(i, 0) ;
+
+           for( var x = 2 ; x < aLinhaSubTotais.length ; x++ )
+           {
+             aLinhaSubTotais[x] = 0 ;
+           }
+        }
+
+        aLinha = [] ;
+
+        nTotaldaLinha = 0 ;
+
+        // alimenta a array que contém os valores da linha. Este array será adicionado ao datatable.
+        for( var k = 0 ; k < otherData.getNumberOfColumns() ; k++ )
+        {
+          aLinha.push( otherData.getValue(i, k) ) ;
+
+          // acumula os valores na array de totais
+          // inicia a partir do 3o elemento, pois os dois primeiros são strings
+          if( k >= 2 )
+          {
+
+            nTotaldaLinha += otherData.getValue(i, k) ;
+
+            if(  otherData.getValue(i, 1) == 'orçado')
+            {
+              aLinhaSubTotais[k] += otherData.getValue(i, k) ;
+              aLinhaSubTotais[ aLinhaSubTotais.length-1] += otherData.getValue(i, k) ;
+
+              aLinnhaTotalOrçado[k] += otherData.getValue(i, k) ;
+              aLinnhaTotalOrçado[aLinnhaTotalOrçado.length-1] += otherData.getValue(i, k) ;
+
+              aLinhaTotalGeral[k] += otherData.getValue(i, k) ;
+              aLinhaTotalGeral[ aLinhaTotalGeral.length-1] += otherData.getValue(i, k) ;
+
+            }
+            else
+            {
+              aLinhaSubTotais[k] -= otherData.getValue(i, k) ;
+              aLinhaSubTotais[ aLinhaSubTotais.length-1] -= otherData.getValue(i, k) ;
+
+              aLinnhaTotalRealizado[k] += otherData.getValue(i, k) ;
+              aLinnhaTotalRealizado[ aLinnhaTotalRealizado.length-1 ] += otherData.getValue(i, k) ;
+
+              aLinhaTotalGeral[k] -= otherData.getValue(i, k) ;
+              aLinhaTotalGeral[ aLinhaTotalGeral.length-1] -= otherData.getValue(i, k) ;
+
+            }
+          }
+        }
+
+        aLinha[k] = nTotaldaLinha ;
+
+        dataTable.addRows([ aLinha ]) ;
+
+      }
+
+      dataTable.addRows([ aLinhaSubTotais ]) ;
+      aLinhasDeTotais.push(dataTable.getNumberOfRows()-1 ) ;
+
+      dataTable.addRow() ;
+
+      dataTable.addRows([ aLinnhaTotalOrçado ]) ;
+      dataTable.addRows([ aLinnhaTotalRealizado ]) ;
+      dataTable.addRows([ aLinhaTotalGeral ]) ;
+      aLinhasDeTotais.push(dataTable.getNumberOfRows()-1 ) ;
+
+
+      var options = {   frozenColumns: 1,
+                        showRowNumber: true,
+                        'allowHtml': true,
+                         firstRowNumber:2,
+                        timeline: { colorByRowLabel: true },
+                        backgroundColor: '#ffd',
+      };
+
+      // destaca na cor azul as linhas dos totais
+      for (var i = 0; i < aLinhasDeTotais.length ; i++)
+      {
+        for( var k = 0 ; k < dataTable.getNumberOfColumns() ; k++ )
+        {
+          dataTable.setCell(aLinhasDeTotais[i], k, dataTable.getValue(aLinhasDeTotais[i],k), null, {'className': 'subtotal-font'});
+        }
+      }
+
+      // destaca na cor azul a coluna de total de cada linha
+      for (var i = 0; i < dataTable.getNumberOfRows() ; i++)
+      {
+        if( dataTable.getValue(i,1) == "orçado" || dataTable.getValue(i,1) == "realizado" )
+        {
+          dataTable.setCell(i, dataTable.getNumberOfColumns()-1 , dataTable.getValue(i,dataTable.getNumberOfColumns()-1), null, {'className': 'subtotal-font'});
+        }
+      }
+
+
+      var table = new google.visualization.Table(document.getElementById('table1_div'));
+      table.draw(dataTable, options);
+
+    }
+
+    </script>
+
+  </head>
+
+  <body>
+
+    <div id="header"></div>
+
+    <container>
+          <a class="waves-effect waves-blue btn-small " onclick="window.history.go(-1)" style="color: black;" ><i class="material-icons left">navigate_before</i>voltar</a>
+
+        <div class="row" style="height:500px">
+        <div id="table1_div" style="font-size:16px;font-family: Raleway;letter-spacing: 0.6px;position:relative;overflow-x:auto;padding-top: -10px;
+height:500px;"></div>      </div>
+
+    </container>
+
+    <div id="footer"></div>
+
+  </body>
+
+</html>
+

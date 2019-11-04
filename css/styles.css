@@ -1,0 +1,196 @@
+.fieldset-border {
+            border: 1px groove #ddd !important;
+            padding: 0 1.4em 1.4em 1.4em !important;
+            margin: 0 0 1.5em 0 !important;
+            -webkit-box-shadow: 0px 0px 0px 0px #000;
+            box-shadow: 0px 0px 0px 0px #000;
+        }
+
+        .fieldset-border .legend-border {
+            font-size: 1.2em !important;
+            text-align: left !important;
+            width: auto;
+            padding: 0 10px;
+            border-bottom: none;
+        }
+body {
+      margin-left: 0em;
+      margin-top: 0em;
+      margin-right: 0em;
+      display: flex;
+      min-height: 100vh;
+      flex-direction: column;
+}
+
+main {
+     flex: 1 0 auto;
+ }
+
+.footer-clean {
+    position: relative;
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    background-color: EE6E73;
+    color: white;
+    text-align: center;
+}
+
+nav {
+
+  }
+
+.btn-mini {
+    height: 14px;
+    width: 14px;
+    line-height: 14px;
+    padding: 0 0.5rem;
+}
+
+ .total-font
+      {
+        font-weight: normal;
+        background-color: darkblue;
+        color: white;
+        text-align: right;
+        font-size: 14px;
+      }
+
+.subtotal-font
+      {
+        font-weight: normal;
+        background-color: #1e88e5;
+        color: white;
+        text-align: right;
+        font-size: 13px;
+      }
+
+      .bold-green-font
+      {
+        font-weight: bold;
+        color: green;
+      }
+
+      .bold-font
+      {
+        font-weight: bold;
+      }
+
+      .right-text
+      {
+        text-align: right;
+      }
+
+      .large-font
+      {
+        font-size: 14px;
+      }
+
+      .medium-font
+      {
+        font-size: 12px;
+      }
+
+      .small-font
+      {
+        font-size: 10px;
+      }
+
+      .italic-darkblue-font
+      {
+        font-style: italic;
+        color: darkblue;
+      }
+
+      .italic-purple-font
+      {
+        font-style: italic;
+        color: purple;
+      }
+
+      .underline-blue-font
+      {
+        text-decoration: underline;
+        color: blue;
+      }
+
+      .gold-border
+      {
+        border: 3px solid gold;
+      }
+
+      .deeppink-border
+      {
+        border: 3px solid deeppink;
+      }
+
+      .orange-background
+      {
+        background-color: orange;
+      }
+
+      .orchid-background
+      {
+        background-color: orchid;
+      }
+
+      .beige-background
+      {
+        background-color: beige;
+      }
+
+      .normal-whitespace
+      {
+        white-space: normal;
+      }
+
+.celula-verde
+      {
+        font-weight: normal;
+        background-color: #43a047;
+        color: white;
+        text-align: center;
+        font-size: 12px;
+      }
+
+.celula-vermelho
+      {
+        font-weight: normal;
+        background-color: #e57373;
+        color: white;
+        text-align: center;
+        font-size: 12px;
+      }
+
+.celula-azul
+      {
+        font-weight: normal;
+        background-color: #0097a7;
+        color: white;
+        text-align: center;
+        font-size: 12px;
+      }
+
+.celula-cinza
+      {
+        font-weight: normal;
+        background-color: #757575;
+        color: white;
+        text-align: center;
+        font-size: 12px;
+      }
+
+.celula-neutra
+      {
+        font-weight: normal;
+        background-color: #f0f4c3;
+        color: black;
+        text-align: center;
+        font-size: 12px;
+      }
+
+.waves-effect.waves-blue {
+   /* The alpha value allows the text and background color
+   of the button to still show through. */
+    background-color: rgba(243, 245, 250, 255);
+  }

@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+  <head>
+
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+
+    <script type="text/javascript">
+
+    google.charts.load('current', {'packages':['gantt']});
+
+    google.charts.setOnLoadCallback(drawCards);
+    google.charts.setOnLoadCallback(drawGantt);
+
+    var url   = window.location.search.replace("?", "");
+
+    var tempUrl = url.replace(/%20/g," ");
+    var itens = tempUrl.split("&");
+
+    parametro = itens[0].split("=");
+
+    var id_frente= parametro[1];
+
+    parametro = itens[1].split("=");
+    var id_ponto = parametro[1];
+
+    // ----------------------------------
+    function drawCards()
+    {
+
+      if( id_frente == 'pwc' )
+      {
+        var stringquery =  'SELECT A,D,E,J,F,G,H WHERE A = ' + id_ponto ;
+      }
+      else if( id_frente == 'bdo' )
+      {
+        var stringquery =  'SELECT A,D,E,J,F,G,H WHERE A = "' + id_ponto + '"';
+      }
+
+      var aEntidade = getPlanilha( id_frente) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      query.setQuery(stringquery);
+
+      query.send(handleQueryResponse1);
+
+      return;
+    }
+
+    // ------------------------------------
+    function handleQueryResponse1(response)
+    {
+
+      if (response.isError())
+      {
+        alert('Error in query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+        return;
+      }
+
+      var otherData = response.getDataTable();
+
+      //-------------------------------------------------------------------
+      // Card 1 Id, assunto, nome
+      var texto = "<B>Id Ponto: </B>" + otherData.getValue(0, 0)+"<br />";
+      texto += "<B>Assunto: </B>" + otherData.getValue(0, 1)+"<br />";
+      texto += "<B>Nome: </B>" + otherData.getValue(0, 2)+"<br />";
+      texto += "<B>Responsável: </B>" + otherData.getValue(0, 3)+"<br />";
+
+      document.getElementById("div_ponto").innerHTML = texto;
+
+      //-------------------------------------------------------------------
+      // Card 2 Aspectos apontados
+      var texto = "<B>Aspectos: </B>" + otherData.getValue(0, 4)+"<br />";
+      texto += "<B>Descrição: </B>" + otherData.getValue(0, 5)+"<br />";
+      document.getElementById("div_aspectos").innerHTML = texto;
+
+      //-------------------------------------------------------------------
+      // Card 3 Recomendação
+      var texto = "<B>Recomendação: </B>" + otherData.getValue(0, 6)+"<br />";
+      document.getElementById("div_recomendacao").innerHTML = texto;
+
+    }
+
+    // ----------------------------------
+    function drawGantt()
+    {
+
+      var stringquery='SELECT B,D,L,G,H,I,J,F,Q,E WHERE B = ' + id_ponto;
+
+      var aEntidade = getPlanilha( "plano" ) ;
+
+      if( aEntidade.length == 0 )
+      {
+        alert("Entidade 'realizado' não localizada!") ;
+        return false;
+      }
+
+      var query = new google.visualization.Query( aEntidade["arquivo"] + aEntidade["aba"] );
+
+      query.setQuery(stringquery);
+
+      query.send(handleQueryResponse);
+
+    }
+
+    // -----------------------------------
+    function handleQueryResponse(response)
+    {
+      if (response.isError())
+      {
+        alert('Error in query: ' + response.getMessage() + ' ' + response.getDetailedMessage());
+        return;
+      }
+
+      var otherData = response.getDataTable();
+
+      var ganttData = new google.visualization.DataTable({cols: [
+      {type: 'string', label: 'Task Id'},
+      {type: 'string', label: 'Task Name'},
+      {type: 'string', label: 'Resource'},
+      {type: 'date', label: 'Start'},
+      {type: 'date', label: 'End'},
+      {type: 'number', label: 'Duration'},
+      {type: 'number', label: '% Complete'},
+      {type: 'string', label: 'Dependencies'}
+      ]});
+
+      var aValores = []
+      var hoje = new Date();
+      var dataInicio = hoje;
+      var dataFim = hoje;
+      var tam_height = 0;
+      var percentual_informado = 0;
+      var percentual_decorrido = 0;
+      var nDiasUteisFase = 0;
+      var nDiasUteisDecorridos = 0;
+      var total_horas_estimadas = 0;
+      var aColors = [];
+      var colorMap = {
+                       azul:"#3366CC",
+                       vermelho:"#FF0000",
+                       verde:"#77933C",
+                       amarelo:"#FFFF66",
+                       cinza:"#808080",
+                      };
+
+      var colorMaplighten = {
+                       azul:"#bbdefb",
+                       vermelho:"#ef9a9a",
+                       verde:"#c8e6c9",
+                       amarelo:"#FFFF66",
+                       cinza:"#bdbdbd",
+                      };
+
+      var aEvidencias = [] ;
+      var aValoresItem = [] ;
+
+      for (var i = 0; i < otherData.getNumberOfRows(); i++)
+      {
+
+        tam_height += 24 ;
+        aValoresItem = [] ;
+
+        percentual_informado = otherData.getValue(i, 5) ;
+
+        if( percentual_informado == null )
+        {
+          percentual_informado = 0 ;
+        }
+
+        if( otherData.getValue(i, 3) < dataInicio )
+        {
+          dataInicio = otherData.getValue(i, 3);
+        }
+
+        if( otherData.getValue(i, 4) > dataFim )
+        {
+          dataFim = otherData.getValue(i, 4);
+        }
+
+        nDiasUteisFase = diasUteis( otherData.getValue(i, 3) , otherData.getValue(i, 4) );
+
+        nDiasUteisDecorridos = diasUteis( otherData.getValue(i, 3), hoje);
+
+        percentual_decorrido = nDiasUteisDecorridos / nDiasUteisFase * 100;
+
+        total_horas_estimadas += otherData.getValue(i, 9);
+
+        aValores.push( new Array( otherData.getValue(i, 9), percentual_informado, percentual_decorrido , otherData.getValue(i, 3) , otherData.getValue(i, 4)) ) ;
+
+        aValoresItem.push( new Array( otherData.getValue(i, 9), percentual_informado, percentual_decorrido , otherData.getValue(i, 3) , otherData.getValue(i, 4)) ) ;
+
+        var aStatus = apuraStatus( aValoresItem , otherData.getValue(i, 9) ) ;
+
+        aColors.push( new Array(aStatus["cor1"],aStatus["cor2"]) );
+
+        if( percentual_informado >= 100)
+        {
+          //aColors.push(new Array(colorMap["verde"],colorMaplighten["verde"]));
+        }
+        else
+        {
+          if( otherData.getValue(i, 3) > hoje || otherData.getValue(i, 9) <= 0 )
+          {
+           // aColors.push(new Array(colorMap["cinza"],colorMaplighten["cinza"]));
+            percentual_informado = 0.01;
+          }
+          else
+          {
+            if( percentual_informado >= percentual_decorrido )
+            {
+            //  aColors.push(new Array(colorMap["azul"],colorMaplighten["azul"]));
+            }
+            else if( percentual_informado < percentual_decorrido )
+           {
+            //  aColors.push(new Array(colorMap["vermelho"],colorMaplighten["vermelho"]));
+            }
+          }
+        }
+
+        ganttData.addRow([
+                            otherData.getValue(i, 1),
+                            otherData.getValue(i, 1),
+                            otherData.getValue(i, 2),
+                            otherData.getValue(i, 3),
+                            otherData.getValue(i, 4),
+                            toMilliseconds(nDiasUteisFase),
+                            parseFloat( percentual_informado.toFixed(2) ),
+                            null
+        ]);
+
+        // --------------------------------------------------------
+        // popula a matriz aEvidencias com as evidências informadas
+        if( otherData.getValue(i,8) != null )
+        {
+          aEvidencias.push( new Array( otherData.getValue(i, 0) , otherData.getValue(i, 1) , otherData.getValue(i, 8) ) ) ;
+        }
+
+      }
+
+      if( tam_height < 120 )
+      {
+        tam_height = 120;
+      }
+
+      ganttData.sort([{column: 3}]);
+
+      var w = window,
+      d = document,
+      e = d.documentElement,
+      g = d.getElementsByTagName('body')[0],
+      xWidth = w.innerWidth || e.clientWidth || g.clientWidth,
+      yHeight = w.innerHeight|| e.clientHeight|| g.clientHeight;
+
+      var options = {
+
+                       height: tam_height,
+                       width: 750,
+                       chartArea: {  width: "30%", height: "50%" },
+                       gantt: { defaultStartDate: new Date(2018, 1, 2),
+                                trackHeight: 20,
+                                barHeight: 15,
+                                labelStyle: {  fontSize: 13,fontName: 'Arial',color: '#000000'},
+                                percentEnabled: 'True',
+                                legend: { maxLines: 1, textStyle: {fontSize: 8}},
+
+                       },
+      };
+
+      var container = document.getElementById('chartGantt');
+      var chart = new google.visualization.Gantt(container);
+
+      // monitor activity, change bar color
+      var observer = new MutationObserver(function (mutations) {
+          Array.prototype.forEach.call(container.getElementsByTagName('path'), function(bar, index) {
+            var barY;
+            var cCor1 = aColors[index][0];
+            var cCor2 = aColors[index][1];
+
+            bar.setAttribute('fill', cCor1 );
+
+            barY = bar.getAttribute('d').split(' ')[2];
+            Array.prototype.forEach.call(container.getElementsByTagName('rect'), function(bar2) {
+            if (bar2.getAttribute('y') === barY) {
+            bar2.setAttribute('fill', cCor2 );
+            }
+              });
+
+        });
+      });
+
+      var observer2 = new MutationObserver(function () {
+          $.each($('text'), function (index, label) {
+          var rowIndex = ganttData.getFilteredRows([{
+          column: 1,
+          value: $(label).text()
+          }]);
+
+          if (rowIndex.length > 0) {
+              $(label).attr('fill', '#000000')
+          }
+        });
+      });
+
+      observer2.observe(container, {
+        childList: true,
+        subtree: true
+      });
+
+      observer.observe(container, {
+        childList: true,
+        subtree: true
+      });
+
+      chart.draw(ganttData, options);
+
+
+      //-------------------------------------------------------------------
+      // Card 4 - Evidências
+      var texto = "<B>Evidências: </B>";
+      var cLink ;
+      for (var i = 0 ; i < aEvidencias.length ; i++)
+      {
+        var cLink =  '<a href="' + aEvidencias[i][2] + '">' + aEvidencias[i][0] + " - " + aEvidencias[i][1] + '</a>' ;
+        texto += "<BR>" + cLink ;
+      }
+
+      document.getElementById("div_evidencias").innerHTML = texto ;
+
+      // Card 5 Situação
+      var diffDays = Math.ceil((Math.abs(dataFim - dataInicio)) / (1000 * 3600 * 24)) ;
+      var nDiasUteis = diasUteis (dataInicio,dataFim);
+      var aStatus =  apuraStatus( aValores , total_horas_estimadas ) ;
+      if( aStatus["status"] != "não planejado")
+      {
+        var texto = "<B>Início : </B> " + dataInicio.toLocaleDateString() + "<br />" ;
+        texto +=  "<B>Conclusão : </B> " + dataFim.toLocaleDateString() + "<br />" ;
+        texto += "<B>Duração : </B>" + diffDays + " dias corridos (" + nDiasUteis +" úteis)<br />" ;
+        texto += "<B>Esforço : </B>" + total_horas_estimadas + " horas.<br />" ;
+        texto += "<B>Progresso : </B>" + parseFloat( aStatus["percinf"].toFixed(0) ) + "% (informado) / " + parseFloat( aStatus["percdec"].toFixed(0) ) + "% (decorrido) <br />" ;
+        texto += "<B>Status : </B>" + '<i class="material-icons"style="color:' + aStatus["cor1"] + ';">lens</i>'+aStatus["status"] +"<br />" ;
+      }
+      else
+      {
+        var texto = "<B>Status : </B>" + '<i class="material-icons"style="color:' + aStatus["cor1"] + ';">lens</i>'+aStatus["status"] +"<br />" ;
+      }
+
+      document.getElementById("div_ponto").innerHTML += texto ;
+
+    }
+
+    </script>
+
+  </head>
+
+  <body>
+
+    <div id="header"></div>
+
+    <container>
+
+      <div class="row" style="min-height:100px;margin:1px;font-size:14px;font-family: Roboto;letter-spacing: 1px;">
+          <div id="div_ponto" class="col s12 m4 l3" style="border-width: 2px; border-color: black; border-style: solid; border-radius: 10px;margin:1px;" >Dados</div>
+          <div id="div_aspectos" class="col s12 m4" style="border-width: 2px; border-color: black; border-style: solid; border-radius: 10px;margin:1px;" >Aspectos</div>
+          <div id="div_recomendacao" class="col s12 m4" style="border-width: 2px; border-color: black; border-style: solid; border-radius: 10px;margin:1px;" >Aspectos</div>
+      </div>
+
+      <div class="row" style="min-height:100px;margin:1px;font-size:16px;font-family: Roboto;letter-spacing: 1px;">
+        <div id="chartGantt" class="col s12 m4 l7" style="border-width: 2px; border-color: black; border-style: solid; border-radius: 10px;margin:1px;" >Plano de Ação</div>
+        <div id="div_evidencias" class="col s12 m4" style="border-width: 2px; border-color: black; border-style: solid; border-radius: 10px;margin:1px;" >Evidências</div>
+
+      </div>
+
+    </container>
+
+    <div id="footer"></div>
+
+  </body>
+</html>

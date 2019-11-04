@@ -1,0 +1,132 @@
+<html>
+  <head>
+      <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0-beta/js/materialize.min.js"></script>
+    <script type="text/javascript" src="./js/functions.js"></script>
+    <link rel="stylesheet" type="text/css" href="./css/styles.css">
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link type="text/css" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.0/css/materialize.min.css"/>
+    <link href="https://fonts.googleapis.com/css?family=Raleway:400,700" rel="stylesheet">
+    <script src="https://www.google.com/jsapi" type="text/javascript"></script>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+
+    google.charts.load('current', {'packages':['corechart', 'controls']});
+
+    google.charts.setOnLoadCallback(drawVisualization);
+
+
+    function drawVisualization() {
+    // Prepare the data
+    var data = new google.visualization.DataTable();
+    data.addColumn('string', 'categoria') ;
+    data.addColumn('string', 'subcategoria') ;
+    data.addColumn('number', 'total') ;
+
+    // added 'outward' for London and 'inward' for Wyre Forest to make filters work better
+    data.addRows([
+        ['hardware', 'note', 5 ],
+        ['hardware', 'mouse', 8 ],
+        ['hardware', 'monitor', 3],
+        ['sistema', 'JDE', 15],
+        ['sistema', 'sgCap',8],
+        ['sistema', 'SMI', 4]
+    ]);
+
+    // Define a category picker control for the Gender column
+    var categoryPicker = new google.visualization.ControlWrapper({
+        controlType: 'CategoryFilter',
+        containerId: 'control2',
+        options: {
+            filterColumnLabel: 'categoria',
+            ui: {
+                labelStacking: 'vertical',
+                allowTyping: false,
+                allowMultiple: false,
+                height: 100
+            }
+        },
+        state: {
+            selectedValues: ['hardware']
+        }
+    });
+
+
+    // Define a Bar chart
+    var chart = new google.visualization.ChartWrapper({
+        chartType: 'BarChart',
+        containerId: 'chart1',
+        options: {
+            width: 700,
+            height: 700,
+            vAxis: {
+                textStyle: {
+                    fontSize: 12,
+                    fontName: 'Arial'
+                },
+                viewWindow: {
+                    max: 10
+                }
+            },
+            hAxis: {
+                maxValue: 80,
+                minValue: 0
+            },
+
+            animation: {
+                duration: 1000,
+                easing: 'out'
+            },
+            legend: 'none',
+            title: 'Inward commuting from City of London'
+        },
+        // Instruct the barchart to use columns 2, 3, 4 and 5
+        // from the 'data' DataTable.
+        view: {
+            columns: [1, 2]
+        }
+    });
+
+    // create "statechange" event listeners for the CategoryFilters
+    google.visualization.events.addListener(categoryPicker, 'statechange', changeTitle);
+
+    function changeTitle () {
+        var location = categoryPicker.getState().selectedValues[0];
+        var title = chart.getOption('title');
+        //title = title.replace(/^.*(?=\scommuting)/, direction);
+        // grrrrrr...js does not support lookbehind in regex
+        //title = title.replace(/\sfrom.*/, ' from ' + location);
+        chart.setOption('title', title);
+        chart.draw();
+    }
+
+    // Create a dashboard
+    new google.visualization.Dashboard(document.getElementById('dashboard')).
+    // Establish bindings, declaring the both category pickers
+    // picker will drive the chart.
+    bind(categoryPicker, chart).
+    // Draw the entire dashboard.
+    draw(data);
+}
+</script>
+  </head>
+
+  <body>
+
+<div id="dashboard">
+    <table>
+        <tr style='vertical-align: top'>
+            <td style='width: 250px; height: 75px; font-size: 0.9em;'>
+                <div id="control2"></div>
+                <div style="float: top;" id="chart1"></div>
+            </td>
+        </tr>
+    </table>
+</div>
+
+</body>
+</html>
